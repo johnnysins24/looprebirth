@@ -288,7 +288,7 @@ func _on_key(e: InputEventKey) -> void:
 		KEY_L:
 			show_log = not show_log
 		KEY_TAB:
-			side.tab = (side.tab + 1) % 2
+			side.next_tab()
 		KEY_B:
 			Art.cycle_background()
 			_save_settings()
@@ -357,10 +357,15 @@ func _on_mouse_button(e: InputEventMouseButton) -> void:
 		elif held >= 0 and UiTheme.MAP_RECT.has_point(p):
 			_try_place(cell_at(p))
 			get_viewport().set_input_as_handled()
+		elif held >= 0 and skill_slot_at(p) >= 0:
+			_try_equip(skill_slot_at(p))
+			get_viewport().set_input_as_handled()
 	else:
 		if _dragging and held >= 0:
 			if UiTheme.MAP_RECT.has_point(p):
 				_try_place(cell_at(p))
+			elif skill_slot_at(p) >= 0:
+				_try_equip(skill_slot_at(p))
 			else:
 				held = -1
 		_dragging = false
@@ -390,6 +395,8 @@ func _try_equip(slot: int) -> void:
 	if run.play_skill_card(held, slot):
 		held = -1
 		var verb: String = {"equip": "ใส่", "merge": "merge เป็น L%d" % res["level"], "swap": "เปลี่ยน"}[res["action"]]
+		if res.get("partial", false):
+			verb = "นับครึ่ง (%d/2)" % int(res["progress"])
 		overlay.toasts.append({"text": "ช่อง skill %d: %s" % [slot + 1, verb], "age": 1.6})
 	elif res["reason"] != "":
 		overlay.toasts.append({"text": res["reason"], "age": 1.6})
@@ -522,6 +529,8 @@ func _draw_debug(ci: CanvasItem) -> void:
 
 
 func _load_settings() -> void:
+	if DisplayServer.get_name() == "headless":
+		return  # tests must neither read nor overwrite the player's settings
 	var cfg := ConfigFile.new()
 	if cfg.load(SETTINGS_PATH) == OK:
 		Art.bg_index = clampi(int(cfg.get_value("view", "background", 0)), 0, Art.BACKGROUNDS.size() - 1)
@@ -531,6 +540,8 @@ func _load_settings() -> void:
 
 
 func _save_settings() -> void:
+	if DisplayServer.get_name() == "headless":
+		return
 	var cfg := ConfigFile.new()
 	cfg.set_value("view", "background", Art.bg_index)
 	cfg.set_value("play", "auto_open", auto_open)
