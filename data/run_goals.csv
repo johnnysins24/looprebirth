@@ -1,0 +1,12 @@
+id,goal_th,rebirth_points
+reach_level_7,ฮีโร่ถึง level 7,1
+build_village,สร้างหมู่บ้าน (เมืองขั้น 1),1
+build_town,สร้างเมือง (เมืองขั้น 2),1
+merge_l3,merge การ์ด tile ใบใดก็ได้ถึง L3,1
+skill_l3,merge skill card ใบใดก็ได้ถึง L3,1
+win_30_fights,ชนะการต่อสู้ 30 ครั้ง,1
+five_encounters,มี encounter บนแผนที่พร้อมกัน 5 ช่อง,1
+three_rare_items,ใส่ของหายากขึ้นไปครบ 3 ช่อง,1
+two_combos,ทำ tile combo ได้ 2 แบบใน run เดียว,1
+reach_lap_8,ครบรอบที่ 8,1
+kill_3_elites,ชนะ elite 3 ตัว,1

@@ -1,0 +1,13 @@
+id,name_th,name_en,type,placement,l1,l2,l3,unlock
+rock,หิน,Rock,terrain,roadside_or_open,max_hp +10,max_hp +18,max_hp +30,start
+grove,ป่า,Grove,terrain,roadside,attack_speed +2%,attack_speed +4%,attack_speed +7%,start
+meadow,ทุ่งดอกไม้,Meadow,terrain,roadside,heal 2 HP when passing adjacent road,heal 4,heal 7,start
+spring,บ่อน้ำ,Spring,terrain,roadside,mana_regen +0.3/s in combat,mana_regen +0.6/s,mana_regen +1.0/s,start
+slime_nest,รังสไลม์,Slime Nest,encounter,road,3 slime,4 slime,5 slime (1 elite),start
+wolf_den,ถ้ำหมาป่า,Wolf Den,encounter,road,2 wolf,3 wolf,4 wolf (1 elite),start
+graveyard,สุสาน,Graveyard,encounter,road,2 skeleton,3 skeleton,4 skeleton (1 elite),start
+bandit_camp,ค่ายโจร,Bandit Camp,encounter,road,2 bandit,3 bandit,4 bandit (1 elite),rebirth_tree
+house,บ้าน,House,building,roadside_or_next_to_building,heal 3 HP when passing; counts 1 building,heal 5; counts 2,heal 8; counts 3,start
+smithy,โรงตีเหล็ก,Smithy,building,next_to_building,counts 1 building; rare drop +10%,rare drop +20%,rare drop +30%,rebirth_tree
+shrine,ศาลเจ้า,Shrine,special,roadside,adjacent terrain effect +50%,+75%,+100%,rebirth_tree
+clear,รื้อถอน,Clear,special,any_card,remove the card on that cell and return it to hand at L1,,,rebirth_tree
