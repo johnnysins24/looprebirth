@@ -23,7 +23,12 @@
 | units | `boss_warden.png` 96x96 | เฟรม 32x32: ยืน 2 เฟรม 2 fps, ตี 3 เฟรม 6 fps, เจ็บ |
 | units | `shadow.png` 16x16 | วาดใต้ทุกตัวละคร (ขยาย 2 เท่าใต้บอส) |
 | cards | `<card id>.png` 96x44 | หน้าการ์ดสำเร็จรูป 3 เลเวล (กรอบ, ภาพ, ป้ายเลเวล, ไอคอนประเภท) เกมเขียนชื่อไทย (ตัวหนา 6 px) ลงป้าย (4,31,24,9) สี `#3e2731` ย่อตัวอักษรถ้าชื่อยาว (ค่าอยู่ใน `CardView.PLATE` ตรงกับ manifest) |
-| icons | `stat_str/agi/int.png`, `skill_<id>.png` | 16x16 |
+| icons | `stat_str/agi/int.png`, `skill_<id>.png` | 16x16 ใช้ในแผงแต้ม stat, ช่อง skill, หน้า skill card และ Rebirth tree |
+| icons | `item_weapon/armor/ring/amulet/charm.png`, `perk_<id>.png` | 16x16 ไอเทมในแผงไอเทม/ร้านค้า/ช่อง gear, perk เมืองในแผง perk และแท็บเมือง |
+| icons | `notif_<kind>.png`, `node_<id>.png` | 16x16 ไอคอนแถวแจ้งเตือนข้างจอ (`UiTheme.notice_icon`), ปุ่ม utility บน Rebirth tree |
+| icons | `small/rp.png`, `small/check.png` | 8x8 ใช้ที่ RP บนแถบบนและหน้าจบ/หน้าหลัก, เครื่องหมายเป้าหมายที่ทำแล้ว |
+| tiles | `town_ground.png`, `town_fence.png`, `town_wall.png` | พื้น/รั้ว/กำแพงของเมืองตามระดับ (หมู่บ้าน/เมือง) วาดใต้การ์ดอาคารที่ต่อกันเป็นกลุ่มใหญ่สุด |
+| map | `house_town.png`, `event.png` | บ้านในระดับเมือง (การ์ด house ที่อยู่ในกลุ่มเมือง) และจุด "?" ของ event 4 เฟรม |
 
 placeholder ที่เกมวาดเองมีเลย์เอาต์เล็กกว่า (ฮีโร่ 32x64, ศัตรู 32x16, atlas land 64x64 ฯลฯ) ท่าที่ไม่มีใน placeholder จะถอยกลับไปใช้ท่ายืน/เดิน
 
@@ -35,8 +40,9 @@ index = TL*1 + TR*2 + BL*4 + BR*8 (บิตเปิด = มุมนั้น
 
 ## ยังไม่ได้ใช้ (มีไฟล์แล้ว รอฟีเจอร์ที่ใช้)
 
-เมือง (`tiles/town_*.png`, `map/house_town.png`), `map/event.png`, ไอคอนไอเทม/perk/Rebirth node/แจ้งเตือน, `icons/small/`, `ui/` (9-slice, ตัวเลข, พอร์เทรต),
-`fx/` (เอฟเฟกต์ตี/ฮีล/เลเวลอัป/merge) และกรอบการ์ดแยก ตอนนี้ UI ยังวาดด้วยโค้ดทั้งหมด
+`ui/` ทั้งโฟลเดอร์ (9-slice panel/button/slot, bar, ตัวเลข `digits`, `portrait_hero`, cursor), `fx/` (เอฟเฟกต์ตี/ฮีล/เลเวลอัป/merge),
+`icons/small/` ที่เหลือ (atk, hp, ap ฯลฯ) และกรอบการ์ดแยก (`cards/frame_*.png`, `back`, `badge`) ตอนนี้ UI ยังวาดกรอบ/ปุ่ม/ตัวเลขด้วยโค้ดทั้งหมด
+การเปลี่ยนไปใช้ 9-slice ของ `ui/` เป็นงานตกแต่งที่ทำทีหลังได้โดยไม่กระทบระบบ (จุดเดียวคือ `UiTheme.box` และ `UiTheme.text`)
 
 ## fonts
 
