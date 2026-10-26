@@ -1,0 +1,95 @@
+key,value,note
+board_cols,22,board width in cells (01-run)
+board_rows,13,board height in cells (01-run)
+cell_px,16,tile size in pixels
+loop_len_min,28,shortest loop in road cells
+loop_len_max,36,longest loop in road cells
+loop_min_roadside,40,least free roadside cells on the whole map
+loop_start_w,12,fallback rectangle width in road cells (normally the start size is random)
+loop_start_h,6,fallback rectangle height in road cells
+loop_push_min,30,least random pushes while shaping the loop
+loop_push_max,60,most random pushes while shaping the loop
+camp_edge_margin,2,camp is at least this many cells from the board edge
+walk_seconds_per_tile,0.8,seconds per road cell at x1 speed
+lap_heal_pct,0.15,max HP healed at camp every lap
+boss_lap,10,lap whose completion summons the boss
+wild_groups_base,2,wild slime groups per lap = base + floor(lap / per)
+wild_groups_per_laps,3,see above
+wild_group_size,2,slimes in one wild group (proposal; spec leaves it open)
+hero_hp,100,
+hero_atk,8,
+hero_aps,0.8,attacks per second
+hero_eva,0.05,
+hero_crit,0,from items only
+hero_critd,1.5,crit damage multiplier
+hero_mana,30,
+hero_mregen,2,mana per second in combat
+hero_mana_per_hit,3,mana per normal attack
+hero_start_mana,0.3,fraction of max mana at the start of a fight
+eva_cap,0.6,
+aps_cap,3,
+points_per_level,3,stat points per level up
+str_atk,1,ATK per STR point
+str_hp,6,max HP per STR point
+agi_as,0.05,attack speed per AGI point (of base)
+agi_eva,0.012,evasion per AGI point
+int_ap,2,AP per INT point
+int_mana,4,max mana per INT point
+int_mregen,0.15,mana regen per INT point
+xp_base,20,XP to reach L2
+xp_step,15,extra XP per level after that
+scale_hp,0.25,enemy HP growth per lap
+scale_atk,0.12,enemy ATK growth per lap
+scale_def,0.1,enemy DEF growth per lap
+scale_xp,0.1,enemy XP growth per lap
+elite_hp,2,
+elite_atk,1.5,
+elite_xp,3,
+enc_xp_l2,1.25,encounter L2 XP and drop multiplier
+enc_xp_l3,1.6,encounter L3 XP and drop multiplier
+battle_time_limit,600,seconds before a fight is declared lost (safety net)
+hand_size,10,cards the hand can hold
+hand_start_cards,3,cards in the opening hand
+lap_card_picks,2,card choices at every lap
+lap_card_offers,3,cards offered per choice
+discard_xp,5,XP when the oldest card is pushed out of a full hand
+gear_watk_base,3,item main stat: weapon ATK = base + per_lap * item level
+gear_watk_per_lap,2,
+gear_hp_base,15,armor max HP = base + per_lap * item level
+gear_hp_per_lap,10,
+gear_ap_base,2,trinket with AP as main stat = base + per_lap * item level
+gear_ap_per_lap,2,
+gear_crit,0.05,trinket with crit as main stat
+raid_group_size,2,bandits in one town raid group (03-town.md); one group per town tier at every lap
+town_tier1,3,buildings counted for a village (tier 1)
+town_tier2,6,buildings counted for a town (tier 2)
+perk_hospital_pct,0.1,field hospital: max HP healed when walking a road cell next to the town
+perk_guard_range,2,guard post: road cells within this many cells of the town
+perk_guard_hp,0.8,guard post: enemy HP multiplier
+perk_school_xp,1.15,school: XP multiplier on kills
+perk_bell_hand,2,bell tower: extra hand size
+perk_bell_discard,2,bell tower: multiplier on the XP of a pushed-out card
+perk_yard_points,3,training yard: stat points
+perk_library_offers,4,library: skill cards offered at a level up
+perk_shop_offers,2,shop: items offered every lap
+item_rare_chance,0.25,05-items-events: base chance of a rare drop
+item_epic_chance,0.05,base chance of an epic drop
+item_luck_rare,0.01,rare chance added per luck point (taken from common)
+item_luck_epic,0.002,epic chance added per luck point
+item_rare_mult,1.3,main stat multiplier of a rare item
+item_epic_mult,1.6,main stat multiplier of an epic item
+start_gear,2,how many of weapon/armor/trinket the hero starts with (common level 1 each); 0 = bare hands
+item_max_pending,5,item notices that can wait; the oldest beyond that becomes XP
+item_xp_per_level,3,XP an overflowing item turns into = this x item level
+gear_luck,5,trinket with luck as its main stat
+skill_elite_drop,0.25,chance an elite drops a skill card
+skill_slots,2,hero skill slots (Rebirth tree can add one)
+event_chance,0.25,chance per lap that a ? cell appears
+event_shrine_hp,0.2,old shrine: share of current HP paid
+event_traveler_hp,0.15,wounded traveller: share of max HP paid
+event_fountain_win,0.5,mysterious fountain: chance of the good outcome
+event_fountain_points,3,mysterious fountain: stat points on the good outcome
+event_fountain_hp,0.1,mysterious fountain: share of current HP lost on the bad outcome
+event_trade_cards,2,wandering merchant: hand cards he asks for
+goals_base,3,run goals per run
+boss_rp,2,Rebirth points for killing the boss

@@ -1,0 +1,5 @@
+id,name_th,a,b,value,value2,description
+hot_spring,น้ำพุร้อน,rock,spring,0.05,0,บ่อน้ำนั้นฟื้น 5% max HP เมื่อเดินผ่านช่องทางที่ติดกัน
+garden,สวน,meadow,house,1,0,บ้านนั้นนับเพิ่มอีก 1 หลังสำหรับเมือง
+deep_forest,ป่าลึก,grove,wolf_den,1,1.5,ถ้ำนั้นมีหมาป่าเพิ่ม 1 ตัว แต่ XP x1.5
+haunted_village,หมู่บ้านผีสิง,graveyard,house,0,0,บ้านนั้นไม่ฟื้น HP และไม่นับเป็นอาคาร (combo ลบ)

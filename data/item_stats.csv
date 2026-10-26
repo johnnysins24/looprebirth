@@ -1,0 +1,9 @@
+stat,name_th,lo,hi,per_level
+attack_speed,ตีเร็ว,5%,15%,0
+evasion,หลบ,3%,8%,0
+crit,คริ,3%,10%,0
+crit_damage,คริดาเมจ,20%,50%,0
+luck,luck,3,10,0
+max_mana,max mana,10,25,0
+ap,AP,1,1,1
+max_hp,max HP,0,0,5

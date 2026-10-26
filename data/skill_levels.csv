@@ -1,0 +1,16 @@
+skill,level,flat,atk_x,ap_x,max_hp_pct,bonus_pct,seconds
+fireball,1,10,0,1.2,0,0,0
+fireball,2,18,0,1.5,0,0,0
+fireball,3,30,0,1.9,0,0,0
+cleave,1,0,1.0,0.5,0,0,0
+cleave,2,0,1.3,0.7,0,0,0
+cleave,3,0,1.7,1.0,0,0,0
+heal,1,0,0,2.0,0.10,0,0
+heal,2,0,0,2.5,0.14,0,0
+heal,3,0,0,3.0,0.20,0,0
+haste,1,0,0,0,0,0.50,4
+haste,2,0,0,0,0,0.60,5
+haste,3,0,0,0,0,0.75,6
+mana_shield,1,15,0,1.0,0,0,5
+mana_shield,2,25,0,1.3,0,0,6
+mana_shield,3,40,0,1.7,0,0,7
