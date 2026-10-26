@@ -4,6 +4,8 @@ extends RefCounted
 
 const W := 32
 const H := 44
+const PLATE := Rect2(4, 31, 24, 9)  ## empty name plate on the finished card faces (manifest.json cards.name_plate)
+const PLATE_TEXT := Color("3e2731")
 
 
 static func type_color(type: String) -> Color:
@@ -25,12 +27,15 @@ static func draw_card(ci: CanvasItem, pos: Vector2, db: GameDb, card_id: String,
 	var name := def.name_th
 	var w := UiTheme.text_width(name, UiTheme.FS_SMALL)
 	if Art.has_real("cards", card_id):
-		# finished face (frame, picture, level badge, type icon) with an empty name plate at (4, 34, 24, 6)
+		# finished face (frame, picture, level badge, type icon) with an empty name plate
 		Art.draw_frame(ci, "cards", card_id, pos, W, H, level - 1, 0, tint)
 		if selected:
 			ci.draw_rect(Rect2(pos, Vector2(W, H)), UiTheme.GOLD, false, 1.0)
-		var scale := minf(1.0, 22.0 / maxf(w, 1.0))  # long Thai names shrink to fit inside the plate
-		UiTheme.text(ci, pos.x + 4 + (24.0 - w * scale) / 2.0, pos.y + 33, name, maxi(4, int(UiTheme.FS_SMALL * scale)), Color("3e2731") * tint)
+		var bw := UiTheme.text_width(name, UiTheme.FS_SMALL, true)
+		var scale := minf(1.0, (PLATE.size.x - 2.0) / maxf(bw, 1.0))  # long Thai names shrink to fit inside the plate
+		var fs := maxi(4, int(UiTheme.FS_SMALL * scale))
+		var tw := UiTheme.text_width(name, fs, true)
+		UiTheme.text(ci, pos.x + PLATE.position.x + (PLATE.size.x - tw) / 2.0, pos.y + PLATE.position.y + 0.5, name, fs, PLATE_TEXT * tint, true)
 		return
 	var r := Rect2(pos, Vector2(W, H))
 	ci.draw_rect(r, UiTheme.PANEL_LIGHT * tint)
