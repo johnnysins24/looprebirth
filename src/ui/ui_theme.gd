@@ -26,9 +26,52 @@ const HP_COL := Color("e43b44")
 const MANA_COL := Color("0099db")
 const XP_COL := Color("fee761")
 
+const RARITY := [Color("8b9bb4"), Color("0099db"), Color("b55088")]  ## common, rare, epic
+const PERK_COL := Color("2ce8f5")
+const SKILL_COL := Color("b55088")
+
 const FS := 7  ## body font size
 const FS_SMALL := 6
 const FS_BIG := 9
+
+
+static func rarity_color(rarity: int) -> Color:
+	return RARITY[clampi(rarity, 0, RARITY.size() - 1)]
+
+
+## icons/<id>.png shown in the notification list for each notice kind.
+static func notice_icon(kind: String) -> String:
+	match kind:
+		"stat":
+			return "notif_stat_point"
+		"lap_card":
+			return "notif_lap_card"
+		"skill_card":
+			return "notif_skill_card"
+		"item", "shop":
+			return "notif_item"
+		"town_perk":
+			return "notif_town_perk"
+		"event":
+			return "notif_event"
+	return "notif_goal"
+
+
+static func notice_color(kind: String) -> Color:
+	match kind:
+		"stat":
+			return GOOD
+		"lap_card", "shop":
+			return GOLD
+		"skill_card":
+			return SKILL_COL
+		"item":
+			return Color("c0cbdc")
+		"town_perk":
+			return PERK_COL
+		"event":
+			return WARN
+	return TEXT_DIM
 
 
 static func make() -> Theme:

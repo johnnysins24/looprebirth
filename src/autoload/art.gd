@@ -220,6 +220,16 @@ func draw_road(ci: CanvasItem, pos: Vector2, mask: int) -> void:
 	draw_frame(ci, "tiles", "road", pos, CELL, CELL, mask, 0)
 
 
+## Town overlay tile (dual grid like the land, index bit = cell belongs to the town).
+## layer: town_ground | town_fence | town_wall. Only the real sheets exist, see town_art().
+func draw_town_tile(ci: CanvasItem, layer: String, pos: Vector2, index: int) -> void:
+	draw_frame(ci, "tiles", layer, pos, CELL, CELL, index % 4, index / 4)
+
+
+func town_art() -> bool:
+	return has_real("tiles", "town_ground") and has_real("tiles", "town_fence") and has_real("tiles", "town_wall")
+
+
 ## The start cell; the real sheet is 4 frames of a flickering fire.
 func draw_camp(ci: CanvasItem, pos: Vector2) -> void:
 	draw_frame(ci, "tiles", "camp", pos, CELL, CELL, int(time * CAMP_FPS) % 4, 0)
@@ -383,9 +393,9 @@ func _ph_object(id: String) -> Image:
 				_rect(img, o + 7, 18, 2, 5, C["black"])
 				_rect(img, o + 13 - n, 8, 1, 6, C["dark_brown"])
 				_rect(img, o + 14 - n, 8, 3, 2, C["crimson"])
-			"house":
+			"house", "house_town":
 				_rect(img, o + 3, 14, 10, 9, C["cream"])
-				_tri(img, o + 1, 5 - lv, 14, 10 + lv, C["red"])
+				_tri(img, o + 1, 5 - lv, 14, 10 + lv, C["deep_blue"] if id == "house_town" else C["red"])
 				_rect(img, o + 7, 18, 3, 5, C["dark_brown"])
 				_rect(img, o + 4, 16, 2, 2, C["blue"])
 				for k in lv:
@@ -402,6 +412,14 @@ func _ph_object(id: String) -> Image:
 				_rect(img, o + 1, 11, 14, 3, C["red"])
 				_rect(img, o + 3, 8, 10, 2, C["red"])
 				_disc(img, o + 8, 19, 1.5, C["gold"])
+			"event":
+				var bob := (lv % 2)
+				_disc(img, o + 8, 14 - bob, 6, C["gold"])
+				_disc(img, o + 8, 14 - bob, 4.5, C["yellow"])
+				_rect(img, o + 7, 10 - bob, 3, 2, C["wine"])
+				_rect(img, o + 9, 12 - bob, 2, 2, C["wine"])
+				_rect(img, o + 7, 14 - bob, 2, 2, C["wine"])
+				_rect(img, o + 7, 17 - bob, 2, 2, C["wine"])
 			"clear":
 				for k in 10:
 					_rect(img, o + 3 + k, 12 + k, 2, 2, C["red"])

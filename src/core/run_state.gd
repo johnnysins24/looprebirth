@@ -1041,6 +1041,20 @@ func debug_level_up() -> void:
 	_award_xp(hero.xp_needed() - hero.xp)
 
 
+## Fills the notice list with one of everything, for screenshots and manual checks (--demo).
+func debug_demo() -> void:
+	debug_level_up()
+	for k in 3:
+		offer_item(new_item())
+	for id in db.event_order:
+		_add_notice("event", db.events[id].name_th, db.events[id].story_th, {"event": id})
+	_offer_perk(1)
+	var wares: Array[Item] = [new_item(), new_item()]
+	_add_notice("shop", "ร้านค้า รอบที่ %d" % lap, "เลือกของ 1 ชิ้นจาก 2", {"items": wares})
+	_add_notice("lap_card", "การ์ดรอบที่ 1 (1/2)", "เลือก 1 จาก %d" % offer_count(), {"offers": make_offers()})
+	_add_notice("info", "เป้าหมายสำเร็จ +1 RP", goals.list[0].text, {}, 600.0)
+
+
 func debug_give_cards(ids: Array) -> void:
 	for id in ids:
 		give_card(CardInst.make(id))

@@ -13,6 +13,8 @@ var _valid: Dictionary = {}  # Vector2i -> check result, for the held card
 var _valid_key := ""
 var _floaters: Array[Dictionary] = []
 var _t := 0.0
+var _town_key := ""
+var _town_tiles: Array[Vector3i] = []  # (i, j, dual-grid index) of the town overlay tiles
 
 
 func _init() -> void:
@@ -25,6 +27,7 @@ func setup(p_run: RunState, p_game: Game) -> void:
 	game = p_game
 	_floaters.clear()
 	_valid_key = ""
+	_town_key = ""
 	run.healed.connect(_on_healed)
 	run.combo_formed.connect(_on_combo)
 
@@ -87,9 +90,12 @@ func _draw() -> void:
 		_draw_sea_pattern()
 	_draw_land(board)
 	_draw_road(board)
+	_refresh_town()
+	_draw_town_ground()
 	_refresh_valid()
 	_draw_valid_cells()
 	_draw_sorted(board)
+	_draw_town_label()
 	_draw_hover(board)
 	_draw_floaters()
 
@@ -141,6 +147,86 @@ func _draw_road(board: Board) -> void:
 	Art.draw_camp(self, Vector2(board.camp()) * CELL)
 
 
+# --- town --------------------------------------------------------------------------------------
+
+
+## Dual-grid overlay tiles for the town (the largest building group), rebuilt when it changes.
+func _refresh_town() -> void:
+	var t := run.town
+	var key := "%d|%s" % [t.tier, str(t.cells)]
+	if key == _town_key:
+		return
+	_town_key = key
+	_town_tiles.clear()
+	if t.tier <= 0:
+		return
+	for i in range(run.board.cols + 1):
+		for j in range(run.board.rows + 1):
+			var idx := 0
+			if t.has_cell(Vector2i(i - 1, j - 1)):
+				idx |= 1
+			if t.has_cell(Vector2i(i, j - 1)):
+				idx |= 2
+			if t.has_cell(Vector2i(i - 1, j)):
+				idx |= 4
+			if t.has_cell(Vector2i(i, j)):
+				idx |= 8
+			if idx != 0:
+				_town_tiles.append(Vector3i(i, j, idx))
+
+
+## Cobblestones under a tier-2 town. Without the art sheets a tint and an outline stand in.
+func _draw_town_ground() -> void:
+	if run.town.tier < 2:
+		return
+	if Art.town_art():
+		for tile in _town_tiles:
+			Art.draw_town_tile(self, "town_ground", Vector2(tile.x * CELL - CELL / 2, tile.y * CELL - CELL / 2), tile.z)
+	else:
+		for c in run.town.cells:
+			draw_rect(Rect2(Vector2(c) * CELL, Vector2(CELL, CELL)), Color(0.75, 0.75, 0.8, 0.35))
+
+
+func _draw_town_edge(layer: String, tile: Vector3i) -> void:
+	Art.draw_town_tile(self, layer, Vector2(tile.x * CELL - CELL / 2, tile.y * CELL - CELL / 2), tile.z)
+
+
+## Without the art sheets: a fence (tier 1) or wall (tier 2) line on the border of the group.
+func _draw_town_outline() -> void:
+	var col := Art.color("dark_brown") if run.town.tier < 2 else Art.color("silver")
+	var w := 1.0 if run.town.tier < 2 else 2.0
+	for c in run.town.cells:
+		var p := Vector2(c) * CELL
+		if not run.town.has_cell(c + Vector2i(0, -1)):
+			draw_line(p, p + Vector2(CELL, 0), col, w)
+		if not run.town.has_cell(c + Vector2i(0, 1)):
+			draw_line(p + Vector2(0, CELL), p + Vector2(CELL, CELL), col, w)
+		if not run.town.has_cell(c + Vector2i(-1, 0)):
+			draw_line(p, p + Vector2(0, CELL), col, w)
+		if not run.town.has_cell(c + Vector2i(1, 0)):
+			draw_line(p + Vector2(CELL, 0), p + Vector2(CELL, CELL), col, w)
+
+
+func _draw_town_label() -> void:
+	var t := run.town
+	if t.tier <= 0:
+		return
+	var top := 99
+	var left := 99
+	var right := -1
+	for c in t.cells:
+		top = mini(top, c.y)
+		left = mini(left, c.x)
+		right = maxi(right, c.x)
+	var label := "%s %d" % [t.tier_name(), t.count]
+	var w := UiTheme.text_width(label, UiTheme.FS_SMALL, true) + 6.0
+	var cx := (left + right + 1) * CELL / 2.0
+	var y := maxf(0.0, top * CELL - 9.0)
+	var x := clampf(cx - w / 2.0, 0.0, size.x - w)
+	draw_rect(Rect2(x, y, w, 9), Color(UiTheme.BG, 0.8))
+	UiTheme.text(self, x + 3, y - 0.5, label, UiTheme.FS_SMALL, UiTheme.PERK_COL, true)
+
+
 func _draw_valid_cells() -> void:
 	if _valid.is_empty():
 		return
@@ -159,9 +245,18 @@ func _draw_sorted(board: Board) -> void:
 		items.append({"y": c.y * CELL + CELL, "fn": _draw_card_object.bind(c)})
 	for i in run.spawns:
 		var sp: RunState.Spawn = run.spawns[i]
-		if sp.source == "wild" or sp.source == "boss":
+		if sp.source == "wild" or sp.source == "boss" or sp.source == "raid":
 			var cell := board.path[sp.index]
 			items.append({"y": cell.y * CELL + CELL, "fn": _draw_wild.bind(sp)})
+	for i in run.event_cells:
+		items.append({"y": board.path[i].y * CELL + CELL, "fn": _draw_event_marker.bind(i)})
+	if run.town.tier > 0:
+		if Art.town_art():
+			var layer := "town_wall" if run.town.tier >= 2 else "town_fence"
+			for tile in _town_tiles:
+				items.append({"y": tile.y * CELL + 1, "fn": _draw_town_edge.bind(layer, tile)})
+		else:
+			items.append({"y": 0, "fn": _draw_town_outline})
 	var hp := run.hero_cell_pos() * CELL
 	items.append({"y": hp.y + CELL, "fn": _draw_hero.bind(hp)})
 	items.sort_custom(func(a, b): return a["y"] < b["y"])
@@ -179,7 +274,10 @@ func _draw_card_object(c: Vector2i) -> void:
 		sp = run.spawns.get(run.board.index_of(c))
 		if sp != null and not sp.alive:
 			mod = Color(0.55, 0.55, 0.65, 0.8)  # cleared this lap, comes back at the next one
-	Art.draw_object(self, card.id, origin, card.level, mod)
+	var sprite := card.id
+	if card.id == "house" and run.town.tier >= 2 and run.town.has_cell(c):
+		sprite = "house_town"  # tiled roofs inside a tier-2 town
+	Art.draw_object(self, sprite, origin, card.level, mod)
 	# level pips (levels 2 and 3 only)
 	if card.level > 1:
 		for k in card.level:
@@ -199,8 +297,13 @@ func _draw_wild(sp: RunState.Spawn) -> void:
 		return
 	var origin := Vector2(run.board.path[sp.index]) * CELL
 	Art.draw_unit_anim(self, sp.enemy_id, origin, "idle", _t + sp.index * 0.37)
-	if sp.source == "wild":
-		UiTheme.text(self, origin.x + 10, origin.y + 8, str(sp.count), UiTheme.FS_SMALL, UiTheme.TEXT, true)
+	if sp.source == "wild" or sp.source == "raid":
+		UiTheme.text(self, origin.x + 10, origin.y + 8, str(sp.count), UiTheme.FS_SMALL, UiTheme.WARN if sp.source == "raid" else UiTheme.TEXT, true)
+
+
+func _draw_event_marker(i: int) -> void:
+	var origin := Vector2(run.board.path[i]) * CELL
+	Art.draw_frame(self, "map", "event", origin + Vector2(0, CELL - Art.OBJ_H), CELL, Art.OBJ_H, int(_t * 4.0) % 4, 0)
 
 
 func _draw_hero(px: Vector2) -> void:

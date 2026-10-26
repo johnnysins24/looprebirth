@@ -41,6 +41,25 @@ class SkillDef:
 	func level_params(level: int) -> Dictionary:
 		return levels[clampi(level, 1, levels.size()) - 1]
 
+	## Thai effect text for one level, numbers filled in from skill_levels.csv.
+	func describe(level: int) -> String:
+		var p := level_params(level)
+		match id:
+			"fireball":
+				return "ยิงศัตรูตัวหน้า %s + %s×AP (ไม่สน DEF และหลบ)" % [_n(p["flat"]), _n(p["ap_x"])]
+			"cleave":
+				return "ศัตรูทุกตัว %s×ATK − DEF + %s×AP" % [_n(p["atk_x"]), _n(p["ap_x"])]
+			"heal":
+				return "ฟื้น %d%% max HP + %s×AP (ใช้เมื่อ HP ต่ำกว่า 50%%)" % [roundi(p["max_hp_pct"] * 100.0), _n(p["ap_x"])]
+			"haste":
+				return "ตีเร็ว +%d%% นาน %d วินาที" % [roundi(p["bonus_pct"] * 100.0), roundi(p["seconds"])]
+			"mana_shield":
+				return "โล่ดูดซับ %s + %s×AP นาน %d วินาที" % [_n(p["flat"]), _n(p["ap_x"]), roundi(p["seconds"])]
+		return ""
+
+	static func _n(v: float) -> String:
+		return ("%.1f" % v).trim_suffix(".0")
+
 
 class CardDef:
 	extends RefCounted

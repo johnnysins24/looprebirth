@@ -7,10 +7,18 @@ extends Control
 ## Tab side tab, B background colour, R new run (Shift+R same seed), Esc cancel/close,
 ## F1 debug text, F3 level up, F4 three cards, F9 bot plays.
 ##
+## Two screens: HOME (Rebirth tree and the start button) and RUN. A run starts from HOME,
+## or straight away when the command line gives --seed.
+##
 ## Command line (after `--`): --seed N, --speed N, --bot str|agi|int|mix, --fast SECONDS,
-## --open stat|card, --hold INDEX, --log, --shot PATH [--shot-frames N], --quit-after SECONDS.
+## --open stat|card, --hold INDEX, --log, --shot PATH [--shot-frames N], --quit-after SECONDS,
+## --demo (one notice of every kind), --home (start on the Rebirth tree), --profile PATH|none (save file; default user://profile.json,
+## headless runs keep it in memory), --rp N (give Rebirth points, for screenshots).
+
+enum Screen { HOME, RUN }
 
 const SETTINGS_PATH := "user://settings.cfg"
+const PROFILE_PATH := "user://profile.json"
 
 class Overlay:
 	extends Control
@@ -43,6 +51,12 @@ class Overlay:
 
 var db: GameDb
 var run: RunState
+var meta: Meta
+var screen := Screen.RUN
+var show_settings := false
+var auto_equip := false  ## put on a drop at once when it is better than what is worn
+var preview_seed := 0  ## loop shown on the home screen
+var preview_rerolls := 0
 var speed := 1
 var held := -1  ## hand index of the card being placed, -1 for none
 var open_notice: Notice = null
@@ -62,6 +76,8 @@ var choice: ChoicePanel
 var end_panel: EndPanel
 var log_view: LogView
 var overlay: Overlay
+var home: HomeView
+var settings_view: SettingsView
 
 var _last_speed := 1
 var _drag_origin := Vector2.ZERO
@@ -80,13 +96,22 @@ func _ready() -> void:
 	get_window().title = "Loop Rebirth"
 	db = GameDb.load_default()
 	_load_settings()
-	_build_views()
 	_cli = _parse_cli()
+	var profile := String(_cli.get("profile", "none" if DisplayServer.get_name() == "headless" else PROFILE_PATH))
+	meta = Meta.new(db, "" if profile == "none" else profile)
+	if _cli.has("rp"):
+		meta.rp += int(_cli["rp"])
+	_build_views()
 	if _cli.has("speed"):
 		speed = int(_cli["speed"])
 	if _cli.has("bot"):
 		bot_build = _cli["bot"]
-	start_run(int(_cli.get("seed", randi())))
+	if _cli.has("home") or not (_cli.has("seed") or _cli.has("fast") or _cli.has("shot") or _cli.has("bot")):
+		open_home()
+		if _cli.has("seed"):
+			preview_seed = int(_cli["seed"])
+	else:
+		start_run(int(_cli.get("seed", randi())))
 	_apply_cli_after_start()
 
 
@@ -101,12 +126,18 @@ func _build_views() -> void:
 	hand_bar = HandBar.new()
 	overlay = Overlay.new()
 	overlay.game = self
+	home = HomeView.new()
+	settings_view = SettingsView.new()
 	for v in [map, battle_view, log_view, choice, end_panel]:
 		_place(v, UiTheme.MAP_RECT)
 	_place(top_bar, Rect2(0, 0, UiTheme.VIEW.x, UiTheme.TOP_H))
 	_place(side, UiTheme.SIDE_RECT)
 	_place(hand_bar, UiTheme.HAND_RECT)
+	_place(settings_view, Rect2(Vector2.ZERO, UiTheme.VIEW))
+	_place(home, Rect2(Vector2.ZERO, UiTheme.VIEW))
 	_place(overlay, Rect2(Vector2.ZERO, UiTheme.VIEW))
+	home.setup(self)
+	settings_view.setup(self)
 
 
 func _place(c: Control, r: Rect2) -> void:
@@ -115,8 +146,20 @@ func _place(c: Control, r: Rect2) -> void:
 	add_child(c)
 
 
+func open_home() -> void:
+	screen = Screen.HOME
+	show_settings = false
+	preview_seed = randi()
+	preview_rerolls = 0
+	if run == null:
+		run = RunState.new(db, preview_seed, meta)  # something for the hidden run views to hold
+		_setup_views()
+
+
 func start_run(seed_value: int) -> void:
-	run = RunState.new(db, seed_value)
+	screen = Screen.RUN
+	run = RunState.new(db, seed_value, meta)
+	run.auto_equip = auto_equip
 	held = -1
 	open_notice = null
 	show_log = false
@@ -124,18 +167,22 @@ func start_run(seed_value: int) -> void:
 	_dragging = false
 	_bot_clock = 0.0
 	bot = Bot.new(run, bot_build, seed_value) if bot_build != "" else null
-	for v in [map, top_bar, side, hand_bar, battle_view, choice, end_panel, log_view]:
-		v.setup(run, self)
+	_setup_views()
 	run.toast.connect(func(t): overlay.toasts.append({"text": t, "age": 0.0}))
 	run.lap_completed.connect(func(_lap): _auto_pending = auto_open)
 	run.hand_changed.connect(func(): held = clampi(held, -1, run.hand.size() - 1))
+
+
+func _setup_views() -> void:
+	for v in [map, top_bar, side, hand_bar, battle_view, choice, end_panel, log_view]:
+		v.setup(run, self)
 
 
 # --- time ------------------------------------------------------------------------------------
 
 
 func is_paused() -> bool:
-	return speed == 0 or (open_notice != null and pause_on_panel) or run.phase == RunState.Phase.ENDED
+	return speed == 0 or (open_notice != null and pause_on_panel) or run.phase == RunState.Phase.ENDED or screen != Screen.RUN or show_settings
 
 
 func _process(delta: float) -> void:
@@ -168,7 +215,7 @@ func set_speed(v: int) -> void:
 
 func _next_actionable() -> Notice:
 	for n in run.notices:
-		if n.kind == "stat" or n.kind == "lap_card":
+		if RunState.is_actionable(n):
 			return n
 	return null
 
@@ -177,7 +224,7 @@ func _next_actionable() -> Notice:
 
 
 func open_notice_panel(n: Notice) -> void:
-	if n.kind == "stat" or n.kind == "lap_card":
+	if RunState.is_actionable(n):
 		open_notice = n
 		held = -1
 
@@ -202,6 +249,14 @@ func after_notice_done(n: Notice) -> void:
 
 func _input(event: InputEvent) -> void:
 	if run == null:
+		return
+	if screen == Screen.HOME or show_settings:
+		if event is InputEventKey and event.pressed and not event.echo:
+			if show_settings and event.keycode == KEY_ESCAPE:
+				show_settings = false
+				_save_settings()
+			elif screen == Screen.HOME and not show_settings and (event.keycode == KEY_ENTER or event.keycode == KEY_KP_ENTER or event.keycode == KEY_SPACE):
+				start_run(preview_seed)
 		return
 	if event is InputEventKey and event.pressed and not event.echo:
 		_on_key(event)
@@ -276,6 +331,13 @@ func cell_at(p: Vector2) -> Vector2i:
 	return Vector2i(int(q.x) / UiTheme.CELL, int(q.y) / UiTheme.CELL)
 
 
+## Hero skill slot under a point of the 480x270 screen, or -1.
+func skill_slot_at(p: Vector2) -> int:
+	if not UiTheme.SIDE_RECT.has_point(p):
+		return -1
+	return side.skill_slot_at(_local(p, side))
+
+
 func _on_mouse_button(e: InputEventMouseButton) -> void:
 	if open_notice != null or run.phase == RunState.Phase.ENDED:
 		return
@@ -315,17 +377,63 @@ func _try_place(cell: Vector2i) -> void:
 			overlay.toasts.append({"text": res["reason"], "age": 1.6})
 
 
+func set_auto_equip(on: bool) -> void:
+	auto_equip = on
+	if run != null:
+		run.auto_equip = on
+
+
+func _try_equip(slot: int) -> void:
+	if held < 0 or held >= run.hand.size():
+		return
+	var res := run.check_skill_card(run.hand[held], slot)
+	if run.play_skill_card(held, slot):
+		held = -1
+		var verb: String = {"equip": "ใส่", "merge": "merge เป็น L%d" % res["level"], "swap": "เปลี่ยน"}[res["action"]]
+		overlay.toasts.append({"text": "ช่อง skill %d: %s" % [slot + 1, verb], "age": 1.6})
+	elif res["reason"] != "":
+		overlay.toasts.append({"text": res["reason"], "age": 1.6})
+
+
 # --- hover text ------------------------------------------------------------------------------------
 
 
 func info_lines() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
+	if held < 0 and screen == Screen.RUN:
+		if side.hover_skill >= 0:
+			var slot: Dictionary = run.hero.skills[side.hover_skill] if side.hover_skill < run.hero.skills.size() else {}
+			if slot.is_empty():
+				return [{"t": "ช่อง skill ว่าง", "c": UiTheme.TEXT}, {"t": "ลาก skill card จากมือมาวางที่นี่", "c": UiTheme.TEXT_DIM}]
+			var sd: GameDb.SkillDef = db.skills[slot["id"]]
+			out.append({"t": "%s L%d · mana %d" % [sd.name_th, slot["level"], roundi(sd.mana)], "c": UiTheme.SKILL_COL})
+			out.append({"t": sd.describe(slot["level"]), "c": UiTheme.TEXT})
+			out.append({"t": "merge: ลาก skill เดียวกัน level เดียวกันมาทับ", "c": UiTheme.TEXT_DIM})
+			return out
+		if side.hover_gear >= 0:
+			var slot_id: String = Item.SLOTS[side.hover_gear]
+			var it: Item = run.equipment.get(slot_id)
+			if it == null:
+				return [{"t": "%s: ยังไม่มีของ" % Item.SLOT_NAMES[slot_id], "c": UiTheme.TEXT}, {"t": "ศัตรูดรอปของใส่ช่องนี้ได้", "c": UiTheme.TEXT_DIM}]
+			out.append({"t": "%s · %s" % [it.title(), it.rarity_name()], "c": UiTheme.rarity_color(it.rarity)})
+			out.append({"t": "  ".join(it.lines()), "c": UiTheme.TEXT})
+			return out
 	var cell := map.hover_cell()
 	var card: CardInst = null
 	if held >= 0 and held < run.hand.size():
 		card = run.hand[held]
 	elif hand_bar.hover_slot >= 0 and hand_bar.hover_slot < run.hand.size():
 		card = run.hand[hand_bar.hover_slot]
+	if card != null and card.skill:
+		var sd: GameDb.SkillDef = db.skills[card.id]
+		out.append({"t": "skill card: %s L%d" % [sd.name_th, card.level], "c": UiTheme.SKILL_COL})
+		out.append({"t": sd.describe(card.level), "c": UiTheme.TEXT})
+		out.append({"t": "mana %d · ลากไปช่อง skill ที่แผงขวา" % roundi(sd.mana), "c": UiTheme.TEXT_DIM})
+		if held >= 0 and held < run.hand.size() and run.hand[held] == card and skill_slot_at(get_local_mouse_position()) >= 0:
+			var res := run.check_skill_card(card, skill_slot_at(get_local_mouse_position()))
+			var word: String = {"equip": "ใส่ช่องว่าง", "merge": "merge เป็น L%d" % res["level"], "swap": "เปลี่ยนกับ skill เดิม (ใบเดิมกลับเข้ามือ)"}[res["action"]]
+			out.append({"t": word if res["ok"] else res["reason"], "c": UiTheme.GOOD if res["ok"] else UiTheme.BAD})
+		return out
 	if card != null:
 		var def: GameDb.CardDef = db.cards[card.id]
 		out.append({"t": "%s L%d" % [def.name_th, card.level], "c": UiTheme.GOLD})
@@ -413,6 +521,7 @@ func _load_settings() -> void:
 		Art.bg_index = clampi(int(cfg.get_value("view", "background", 0)), 0, Art.BACKGROUNDS.size() - 1)
 		auto_open = bool(cfg.get_value("play", "auto_open", false))
 		pause_on_panel = bool(cfg.get_value("play", "pause_on_panel", true))
+		auto_equip = bool(cfg.get_value("play", "auto_equip", false))
 
 
 func _save_settings() -> void:
@@ -420,6 +529,7 @@ func _save_settings() -> void:
 	cfg.set_value("view", "background", Art.bg_index)
 	cfg.set_value("play", "auto_open", auto_open)
 	cfg.set_value("play", "pause_on_panel", pause_on_panel)
+	cfg.set_value("play", "auto_equip", auto_equip)
 	cfg.save(SETTINGS_PATH)
 
 
@@ -455,9 +565,11 @@ func _apply_cli_after_start() -> void:
 				local_bot.act()
 	if _cli.has("level-up"):
 		run.debug_level_up()
+	if _cli.has("demo"):
+		run.debug_demo()
 	if _cli.has("open"):
-		var kind := "stat" if _cli["open"] == "stat" else "lap_card"
-		var n := run.first_notice(kind)
+		var kind := String(_cli["open"])
+		var n := run.first_notice("lap_card" if kind == "card" else kind)
 		if n != null:
 			open_notice_panel(n)
 	if _cli.has("hold"):

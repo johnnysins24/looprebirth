@@ -5,6 +5,7 @@ extends Control
 
 const SLOT_W := 34
 const INFO_X := 346.0
+const AREA_W := 340.0  ## room for the cards; a bigger hand overlaps them like a fan
 
 var run: RunState
 var game: Game
@@ -21,13 +22,21 @@ func setup(p_run: RunState, p_game: Game) -> void:
 	game = p_game
 
 
+## Distance between card slots: 34 px up to 10 cards, tighter (overlapping) beyond that.
+func step() -> float:
+	var limit := run.hand_limit()
+	if limit <= 10:
+		return SLOT_W
+	return floorf((AREA_W - CardView.W) / (limit - 1))
+
+
 func slot_rect(i: int) -> Rect2:
-	return Rect2(3 + i * SLOT_W, 1, CardView.W, CardView.H)
+	return Rect2(3 + i * step(), 1, CardView.W, CardView.H)
 
 
-## Hand index under a point in this control's own coordinates, or -1.
+## Hand index under a point in this control's own coordinates, or -1. The last card is on top.
 func slot_at(p: Vector2) -> int:
-	for i in run.hand.size():
+	for i in range(run.hand.size() - 1, -1, -1):
 		if slot_rect(i).has_point(p):
 			return i
 	return -1
@@ -43,14 +52,18 @@ func _draw() -> void:
 		return
 	draw_rect(Rect2(Vector2.ZERO, size), UiTheme.PANEL)
 	draw_line(Vector2(0, 0.5), Vector2(size.x, 0.5), UiTheme.BORDER)
-	for i in run.hand.size():
-		var card := run.hand[i]
-		var r := slot_rect(i)
-		var lift := -3.0 if (i == game.held or i == hover_slot) else 0.0
-		CardView.draw_card(self, r.position + Vector2(0, lift), run.db, card.id, card.level, i == game.held)
-	# empty slots hint the hand limit
-	for i in range(run.hand.size(), run.hand_limit()):
-		draw_rect(slot_rect(i), Color(1, 1, 1, 0.06), false, 1.0)
+	# empty slots hint the hand limit (only while the cards do not overlap)
+	if step() >= CardView.W:
+		for i in range(run.hand.size(), run.hand_limit()):
+			draw_rect(slot_rect(i), Color(1, 1, 1, 0.06), false, 1.0)
+	for pass_no in 2:  # the lifted card goes last so it is never hidden by its neighbours
+		for i in run.hand.size():
+			var lifted := i == game.held or i == hover_slot
+			if lifted != (pass_no == 1):
+				continue
+			var card := run.hand[i]
+			var r := slot_rect(i)
+			CardView.draw_inst(self, r.position + Vector2(0, -3.0 if lifted else 0.0), run.db, card, i == game.held)
 	var count := "%d/%d" % [run.hand.size(), run.hand_limit()]
 	# context box
 	var box := Rect2(INFO_X, 3, size.x - INFO_X - 3.0, size.y - 6.0)

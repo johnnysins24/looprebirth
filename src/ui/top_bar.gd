@@ -58,6 +58,14 @@ func _draw() -> void:
 	# unspent stat points
 	if h.unspent > 0:
 		UiTheme.text(self, 266, 3, "แต้ม +%d" % h.unspent, UiTheme.FS_SMALL, UiTheme.GOOD, true)
+	# Rebirth points earned in this run
+	draw_texture(Art.icon("small/rp"), Vector2(300, 4))
+	UiTheme.text(self, 310, 3, "+%d" % run.rp_earned, UiTheme.FS_SMALL, UiTheme.GOLD if run.rp_earned > 0 else UiTheme.TEXT_DIM, true)
+	# town
+	var town := run.town
+	if town.count > 0:
+		var town_txt := ("%s %d" % [town.tier_name(), town.count]) if town.tier > 0 else ("บ้าน %d/%d" % [town.count, run.db.ci("town_tier1")])
+		UiTheme.text(self, 332, 3, town_txt, UiTheme.FS_SMALL, UiTheme.PERK_COL if town.tier > 0 else UiTheme.TEXT_DIM, true, 60)
 	# speed buttons
 	_buttons.clear()
 	var labels := [["II", 0], ["x1", 1], ["x2", 2], ["x4", 4]]

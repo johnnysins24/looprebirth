@@ -19,6 +19,7 @@ const STAT_NAMES := {
 	"crit_damage": "คริดาเมจ",
 	"max_mana": "max mana",
 }
+const SHORT_NAMES := {"atk": "ATK", "max_hp": "HP", "ap": "AP", "crit": "คริ", "luck": "luck"}  ## main stats, for the gear slots
 const PERCENT := ["crit", "attack_speed", "evasion", "crit_damage"]
 
 var slot := "weapon"
@@ -128,6 +129,13 @@ static func stat_text(stat: String, value: float) -> String:
 	if PERCENT.has(stat):
 		return "%s +%d%%" % [label, roundi(value * 100.0)]
 	return "%s +%d" % [label, roundi(value)]
+
+
+## Short form of the main stat ("ATK 13", "คริ 7%") for the small gear slots on the side panel.
+func short_text() -> String:
+	var v: float = stats[main]
+	var label: String = SHORT_NAMES.get(main, main)
+	return ("%s %d%%" % [label, roundi(v * 100.0)]) if PERCENT.has(main) else ("%s %d" % [label, roundi(v)])
 
 
 ## One line per stat, main stat first.
