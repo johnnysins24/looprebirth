@@ -119,6 +119,10 @@ func _init(p_db: GameDb, p_seed: int, p_meta: Meta = null) -> void:
 	hero.equip_skill(1, "cleave", 1)
 	if skill_slots() > 2:
 		hero.skills.append({})
+	var rng_gear := RandomNumberGenerator.new()
+	rng_gear.seed = hash("gear:%d" % p_seed)
+	for slot: String in Item.SLOTS.slice(0, db.ci("start_gear")):
+		equipment[slot] = Item.roll(db, rng_gear, 1, 0.0, 0.0, slot, Item.Rarity.COMMON, Item.Rarity.COMMON)
 	town = Town.compute(db, board, placed, flags)
 	goals = RunGoals.pick(db, rng_goals, db.ci("goals_base") + meta.rank("more_goals"))
 	rerolls_left = meta.rank("reroll")

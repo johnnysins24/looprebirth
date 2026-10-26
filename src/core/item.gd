@@ -32,7 +32,8 @@ var stats: Dictionary = {}  ## stat -> value, main stat included
 
 
 ## Rolls an item for `level`. `luck` and `rare_bonus` (smithy) shift the odds towards rare;
-## `min_rarity` forces at least that rarity (old shrine); `slot` "" picks a random slot.
+## `min_rarity` forces at least that rarity (old shrine) and `max_rarity` at most that rarity
+## (the hero's starting gear); `slot` "" picks a random slot.
 static func roll(
 	db: GameDb,
 	rng: RandomNumberGenerator,
@@ -40,12 +41,13 @@ static func roll(
 	luck: float = 0.0,
 	rare_bonus: float = 0.0,
 	slot: String = "",
-	min_rarity: int = Rarity.COMMON
+	min_rarity: int = Rarity.COMMON,
+	max_rarity: int = Rarity.EPIC
 ) -> Item:
 	var it := Item.new()
 	it.level = level
 	it.slot = slot if slot != "" else SLOTS[rng.randi() % SLOTS.size()]
-	it.rarity = maxi(min_rarity, roll_rarity(db, rng, luck, rare_bonus))
+	it.rarity = clampi(roll_rarity(db, rng, luck, rare_bonus), min_rarity, max_rarity)
 	var mult := 1.0
 	if it.rarity == Rarity.RARE:
 		mult = db.c("item_rare_mult")

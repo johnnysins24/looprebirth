@@ -52,8 +52,26 @@ func test_luck_and_smithy_move_the_odds(t) -> void:
 	t.near(share.call(0.0, 0.3), 0.60, 0.03, "smithy L3: +30% rare")
 
 
+func test_hero_starts_with_basic_gear(t) -> void:
+	var run := H.new_run(20)
+	t.eq(run.equipment.size(), run.db.ci("start_gear"))
+	for slot: String in run.equipment:
+		var it: Item = run.equipment[slot]
+		t.eq(it.slot, slot)
+		t.eq(it.rarity, Item.Rarity.COMMON, "starting gear is plain")
+		t.eq(it.level, 1)
+	var bare := H.new_run(20)
+	bare.equipment.clear()
+	bare._refresh_gear()
+	t.ok(run.hero.atk > bare.hero.atk and run.hero.max_hp > bare.hero.max_hp, "the starting gear makes the hero stronger")
+	var again := H.new_run(20)
+	t.eq(again.equipment["weapon"].stats["atk"], run.equipment["weapon"].stats["atk"], "same seed, same starting gear")
+
+
 func test_wearing_items_changes_the_hero(t) -> void:
 	var run := H.new_run(21)
+	run.equipment.clear()  # bare hands, so the numbers below are only the item's
+	run._refresh_gear()
 	var atk := run.hero.atk
 	var db := run.db
 	var sword := Item.roll(db, _rng(), 4, 0.0, 0.0, "weapon")

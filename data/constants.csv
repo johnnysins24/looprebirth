@@ -78,6 +78,7 @@ item_luck_rare,0.01,rare chance added per luck point (taken from common)
 item_luck_epic,0.002,epic chance added per luck point
 item_rare_mult,1.3,main stat multiplier of a rare item
 item_epic_mult,1.6,main stat multiplier of an epic item
+start_gear,2,how many of weapon/armor/trinket the hero starts with (common level 1 each); 0 = bare hands
 item_max_pending,5,item notices that can wait; the oldest beyond that becomes XP
 item_xp_per_level,3,XP an overflowing item turns into = this x item level
 gear_luck,5,trinket with luck as its main stat
