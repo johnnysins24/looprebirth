@@ -449,8 +449,11 @@ def slime_nest(level):
         return frame((GOO_1, 2, 16), (BUBBLE, 4, 14), (S("a"), 11, 15))
     if level == 2:
         return frame((GOO_2, 1, 15), (EGG, 8, 11), (BUBBLE, 2, 13))
-    im = frame((GOO_2, 1, 15), (EGG, 2, 10), (EGG, 8, 9), (BUBBLE, 12, 7), (BUBBLE, 6, 6))
-    px.paste(im, px.recolor(EGG, {"a": "P", "u": "m", "B": "p"}), 5, 14)
+    # the elite egg sits at the back, two plain eggs overlap in front (no face-like symmetry)
+    im = frame((GOO_2, 1, 15), (px.recolor(EGG, {"a": "P", "u": "m", "B": "p"}), 7, 9), (BUBBLE, 13, 8))
+    px.paste(im, EGG, 1, 13)
+    px.paste(im, EGG, 5, 14)
+    px.paste(im, BUBBLE, 3, 9)
     return im
 
 
