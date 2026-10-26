@@ -1,0 +1,63 @@
+key,value,note
+board_cols,22,board width in cells (01-run)
+board_rows,13,board height in cells (01-run)
+cell_px,16,tile size in pixels
+loop_len_min,28,shortest loop in road cells
+loop_len_max,36,longest loop in road cells
+loop_min_roadside,40,least free roadside cells on the whole map
+loop_start_w,12,fallback rectangle width in road cells (normally the start size is random)
+loop_start_h,6,fallback rectangle height in road cells
+loop_push_min,30,least random pushes while shaping the loop
+loop_push_max,60,most random pushes while shaping the loop
+camp_edge_margin,2,camp is at least this many cells from the board edge
+walk_seconds_per_tile,0.8,seconds per road cell at x1 speed
+lap_heal_pct,0.15,max HP healed at camp every lap
+boss_lap,10,lap whose completion summons the boss
+wild_groups_base,2,wild slime groups per lap = base + floor(lap / per)
+wild_groups_per_laps,3,see above
+wild_group_size,2,slimes in one wild group (proposal; spec leaves it open)
+hero_hp,100,
+hero_atk,8,
+hero_aps,0.8,attacks per second
+hero_eva,0.05,
+hero_crit,0,from items only
+hero_critd,1.5,crit damage multiplier
+hero_mana,30,
+hero_mregen,2,mana per second in combat
+hero_mana_per_hit,3,mana per normal attack
+hero_start_mana,0.3,fraction of max mana at the start of a fight
+eva_cap,0.6,
+aps_cap,3,
+points_per_level,3,stat points per level up
+str_atk,1,ATK per STR point
+str_hp,6,max HP per STR point
+agi_as,0.05,attack speed per AGI point (of base)
+agi_eva,0.012,evasion per AGI point
+int_ap,2,AP per INT point
+int_mana,4,max mana per INT point
+int_mregen,0.15,mana regen per INT point
+xp_base,20,XP to reach L2
+xp_step,15,extra XP per level after that
+scale_hp,0.25,enemy HP growth per lap
+scale_atk,0.12,enemy ATK growth per lap
+scale_def,0.1,enemy DEF growth per lap
+scale_xp,0.1,enemy XP growth per lap
+elite_hp,2,
+elite_atk,1.5,
+elite_xp,3,
+enc_xp_l2,1.25,encounter L2 XP and drop multiplier
+enc_xp_l3,1.6,encounter L3 XP and drop multiplier
+battle_time_limit,600,seconds before a fight is declared lost (safety net)
+hand_size,10,cards the hand can hold
+hand_start_cards,3,cards in the opening hand
+lap_card_picks,2,card choices at every lap
+lap_card_offers,3,cards offered per choice
+discard_xp,5,XP when the oldest card is pushed out of a full hand
+gear_watk_base,3,stand-in gear (phase 1 only) - weapon ATK = base + per_lap * lap
+gear_watk_per_lap,2,
+gear_hp_base,15,stand-in gear armor HP = base + per_lap * lap
+gear_hp_per_lap,10,
+gear_ap_base,2,stand-in gear AP (casters only) = base + per_lap * lap
+gear_ap_per_lap,2,
+gear_crit,0.05,stand-in gear crit chance
+gear_standin,1,1 = auto-grant average gear and skill levels like tools/balance_sim.py (phase 1 only; remove when items and skill cards land)

@@ -1,6 +1,6 @@
-id,name_th,name_en,hp,atk,attacks_per_s,def,evasion,xp,item_drop,notes
-slime,สไลม์,Slime,18,2,0.8,0,0%,4,15%,many and fragile; also the wild spawn
-wolf,หมาป่า,Wolf,26,3,1.4,0,10%,7,15%,fast hits; evasion counters it
-skeleton,โครงกระดูก,Skeleton,40,4,0.8,3,0%,9,15%,high DEF; STR and skills counter it
-bandit,โจร,Bandit,34,5,1.0,1,5%,8,50%,hits hard and drops items; also town raids
-boss_warden,ผู้คุมวงวน,Loop Warden,950,16,1.0,4,5%,0,100%,lap 10 boss; does not scale; 12% of hits are a x2 slam
+id,name_th,name_en,hp,atk,attacks_per_s,def,evasion,xp,item_drop,notes,scales,slam_chance
+slime,สไลม์,Slime,18,2,0.8,0,0%,4,15%,many and fragile; also the wild spawn,1,0%
+wolf,หมาป่า,Wolf,26,3,1.4,0,10%,7,15%,fast hits; evasion counters it,1,0%
+skeleton,โครงกระดูก,Skeleton,40,4,0.8,3,0%,9,15%,high DEF; STR and skills counter it,1,0%
+bandit,โจร,Bandit,34,5,1.0,1,5%,8,50%,hits hard and drops items; also town raids,1,0%
+boss_warden,ผู้คุมวงวน,Loop Warden,950,16,1.0,4,5%,0,100%,lap 10 boss; does not scale; 12% of hits are a x2 slam,0,12%
