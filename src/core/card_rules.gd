@@ -31,16 +31,19 @@ static func check_place(
 	if existing != null:
 		if existing.id != card.id:
 			res["reason"] = "ช่องนี้มีการ์ดอื่นอยู่"
-		elif existing.level != card.level:
-			res["reason"] = "ต้อง level เท่ากันถึง merge ได้"
 		elif existing.level >= 3:
 			res["reason"] = "level สูงสุดแล้ว"
 		elif def.is_encounter() and board.index_of(cell) == blocked_road:
 			res["reason"] = "ฮีโร่ยืนอยู่ช่องนี้"
 		else:
-			res["ok"] = true
-			res["action"] = "merge"
-			res["level"] = existing.level + 1
+			var step := merge_step(existing.level, existing.progress, card.level)
+			res["ok"] = step["ok"]
+			res["reason"] = step["reason"]
+			if step["ok"]:
+				res["action"] = "merge"
+				res["level"] = step["level"]
+				res["progress"] = step["progress"]
+				res["partial"] = step["level"] == existing.level
 		return res
 	if def.is_encounter() and board.index_of(cell) == blocked_road:
 		res["reason"] = "ฮีโร่ยืนอยู่ช่องนี้"
@@ -49,6 +52,22 @@ static func check_place(
 	res["ok"] = why == ""
 	res["reason"] = why
 	return res
+
+
+## Merging a card of level `add_level` onto a card (tile or hero skill) of level `have` that has
+## absorbed `progress` L1 cards. Same level makes the next level; an L1 card onto an L2 card
+## counts half, so two of them make L3 (L3 = four L1 cards in all, 02-cards.md).
+## Returns {ok, reason, level, progress}.
+static func merge_step(have: int, progress: int, add_level: int) -> Dictionary:
+	if have >= 3:
+		return {"ok": false, "reason": "level สูงสุดแล้ว", "level": have, "progress": progress}
+	if add_level == have:
+		return {"ok": true, "reason": "", "level": have + 1, "progress": 0}
+	if have == 2 and add_level == 1:
+		if progress + 1 >= 2:
+			return {"ok": true, "reason": "", "level": 3, "progress": 0}
+		return {"ok": true, "reason": "", "level": 2, "progress": progress + 1}
+	return {"ok": false, "reason": "ต้อง level เท่ากัน (L1 สองใบ merge เข้า L2 ได้)", "level": have, "progress": progress}
 
 
 static func _placement_reason(

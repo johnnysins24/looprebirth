@@ -408,7 +408,7 @@ func info_lines() -> Array[Dictionary]:
 			var sd: GameDb.SkillDef = db.skills[slot["id"]]
 			out.append({"t": "%s L%d · mana %d" % [sd.name_th, slot["level"], roundi(sd.mana)], "c": UiTheme.SKILL_COL})
 			out.append({"t": sd.describe(slot["level"]), "c": UiTheme.TEXT})
-			out.append({"t": "merge: ลาก skill เดียวกัน level เดียวกันมาทับ", "c": UiTheme.TEXT_DIM})
+			out.append({"t": "merge: ลาก skill เดียวกันมาทับ (level เท่ากัน หรือ L1 สองใบเข้า L2 เป็น L3)", "c": UiTheme.TEXT_DIM})
 			return out
 		if side.hover_gear >= 0:
 			var slot_id: String = Item.SLOTS[side.hover_gear]
@@ -432,6 +432,8 @@ func info_lines() -> Array[Dictionary]:
 		if held >= 0 and held < run.hand.size() and run.hand[held] == card and skill_slot_at(get_local_mouse_position()) >= 0:
 			var res := run.check_skill_card(card, skill_slot_at(get_local_mouse_position()))
 			var word: String = {"equip": "ใส่ช่องว่าง", "merge": "merge เป็น L%d" % res["level"], "swap": "เปลี่ยนกับ skill เดิม (ใบเดิมกลับเข้ามือ)"}[res["action"]]
+			if res.get("partial", false):
+				word = "นับครึ่ง: ต้องมี L1 อีกใบถึงเป็น L3 (ตอนนี้ %d/2)" % int(res["progress"])
 			out.append({"t": word if res["ok"] else res["reason"], "c": UiTheme.GOOD if res["ok"] else UiTheme.BAD})
 		return out
 	if card != null:
@@ -442,7 +444,10 @@ func info_lines() -> Array[Dictionary]:
 			var res := run.check_card(card, cell)
 			if res["ok"]:
 				if res["action"] == "merge":
-					out.append({"t": "วางทับ: merge เป็น L%d" % res["level"], "c": UiTheme.GOLD})
+					var text := "วางทับ: merge เป็น L%d" % res["level"]
+					if res.get("partial", false):
+						text = "วางทับ: นับครึ่ง (L1 สองใบเป็น L3) ตอนนี้ %d/2" % int(res["progress"])
+					out.append({"t": text, "c": UiTheme.GOLD})
 				else:
 					out.append({"t": "วางได้", "c": UiTheme.GOOD})
 				for combo: GameDb.ComboDef in res["combos"]:
@@ -458,7 +463,8 @@ func info_lines() -> Array[Dictionary]:
 		var placed: CardInst = run.placed.get(cell)
 		if placed != null:
 			var def: GameDb.CardDef = db.cards[placed.id]
-			out.append({"t": "%s L%d: %s" % [def.name_th, placed.level, def.describe(placed.level)], "c": UiTheme.TEXT})
+			var prog := " (สะสม %d/2 ใบ)" % placed.progress if placed.level == 2 and placed.progress > 0 else ""
+			out.append({"t": "%s L%d%s: %s" % [def.name_th, placed.level, prog, def.describe(placed.level)], "c": UiTheme.TEXT})
 			for id in run.flags.get(cell, {}):
 				out.append({"t": "combo %s" % db.combos[id].name_th, "c": UiTheme.BAD if id == "haunted_village" else UiTheme.GOLD})
 		var i := run.board.index_of(cell)

@@ -6,6 +6,7 @@ extends RefCounted
 var id := ""
 var level := 1
 var skill := false
+var progress := 0  ## L1 cards already absorbed towards the next level; only used at L2 (see CardRules.merge_step)
 
 
 static func make(p_id: String, p_level: int = 1) -> CardInst:
@@ -24,4 +25,5 @@ static func make_skill(p_id: String, p_level: int = 1) -> CardInst:
 func copy() -> CardInst:
 	var c := CardInst.make(id, level)
 	c.skill = skill
+	c.progress = progress
 	return c

@@ -278,9 +278,9 @@ func _draw_slots() -> void:
 		draw_texture(Art.icon("skill_" + slot["id"]), r.position + Vector2(1, 1))
 		if n <= 2:
 			UiTheme.text(self, r.position.x + 18, r.position.y + 0.5, sd.name_th, UiTheme.FS_SMALL, UiTheme.TEXT, true, r.size.x - 20)
-			UiTheme.text(self, r.position.x + 18, r.position.y + 8.5, "L%d · mana %d" % [slot["level"], roundi(sd.mana)], UiTheme.FS_SMALL, UiTheme.GOLD, false, r.size.x - 20)
+			UiTheme.text(self, r.position.x + 18, r.position.y + 8.5, "L%d%s · mana %d" % [slot["level"], "+" if int(slot.get("progress", 0)) > 0 else "", roundi(sd.mana)], UiTheme.FS_SMALL, UiTheme.GOLD, false, r.size.x - 20)
 		else:
-			UiTheme.text(self, r.position.x + 18, r.position.y + 1, "L%d" % slot["level"], UiTheme.FS_SMALL, UiTheme.GOLD, true)
+			UiTheme.text(self, r.position.x + 18, r.position.y + 1, "L%d%s" % [slot["level"], "+" if int(slot.get("progress", 0)) > 0 else ""], UiTheme.FS_SMALL, UiTheme.GOLD, true)
 			UiTheme.text(self, r.position.x + 18, r.position.y + 9, "%d" % roundi(sd.mana), UiTheme.FS_SMALL, UiTheme.TEXT_DIM)
 	for i in Item.SLOTS.size():
 		var r := gear_rect(i)

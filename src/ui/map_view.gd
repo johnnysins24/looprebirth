@@ -282,6 +282,8 @@ func _draw_card_object(c: Vector2i) -> void:
 	if card.level > 1:
 		for k in card.level:
 			draw_rect(Rect2(origin + Vector2(1 + k * 3, 1), Vector2(2, 2)), UiTheme.GOLD)
+		if card.level == 2 and card.progress > 0:  # one L1 card already absorbed towards L3
+			draw_rect(Rect2(origin + Vector2(1 + 2 * 3, 1), Vector2(2, 2)), Color(UiTheme.GOLD, 0.45))
 	# flags of combos on this cell
 	var f: Dictionary = run.flags.get(c, {})
 	if f.has("haunted_village"):

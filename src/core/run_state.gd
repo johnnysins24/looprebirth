@@ -832,8 +832,10 @@ func play_card(hand_index: int, cell: Vector2i) -> bool:
 	var action: String = res["action"]
 	match action:
 		"merge":
-			(placed[cell] as CardInst).level += 1
-			if (placed[cell] as CardInst).level >= 3:
+			var target := placed[cell] as CardInst
+			target.level = res["level"]
+			target.progress = res["progress"]
+			if target.level >= 3:
 				merged_tile_l3 = true
 		"clear":
 			var gone: CardInst = placed[cell]
@@ -947,7 +949,7 @@ func choose_skill_offer(n: Notice, index: int) -> bool:
 ## What dropping skill card `card` on hero skill slot `slot` would do:
 ## {ok, reason, action: "equip" | "merge" | "swap", level}.
 func check_skill_card(card: CardInst, slot: int) -> Dictionary:
-	var res := {"ok": false, "reason": "", "action": "equip", "level": card.level}
+	var res := {"ok": false, "reason": "", "action": "equip", "level": card.level, "partial": false}
 	if not card.skill:
 		res["reason"] = "การ์ดใบนี้วางบนแผนที่"
 		return res
@@ -962,14 +964,14 @@ func check_skill_card(card: CardInst, slot: int) -> Dictionary:
 		res["ok"] = true
 		res["action"] = "swap"
 		return res
-	if int(cur["level"]) != card.level:
-		res["reason"] = "ต้อง level เท่ากันถึง merge ได้"
-	elif card.level >= 3:
-		res["reason"] = "level สูงสุดแล้ว"
-	else:
-		res["ok"] = true
+	var step := CardRules.merge_step(int(cur["level"]), int(cur.get("progress", 0)), card.level)
+	res["ok"] = step["ok"]
+	res["reason"] = step["reason"]
+	if step["ok"]:
 		res["action"] = "merge"
-		res["level"] = card.level + 1
+		res["level"] = step["level"]
+		res["progress"] = step["progress"]
+		res["partial"] = step["level"] == int(cur["level"])
 	return res
 
 
@@ -985,14 +987,17 @@ func play_skill_card(hand_index: int, slot: int) -> bool:
 	match res["action"]:
 		"merge":
 			hero.skills[slot]["level"] = res["level"]
+			hero.skills[slot]["progress"] = res["progress"]
 			if int(res["level"]) >= 3:
 				merged_skill_l3 = true
 		"swap":
 			var old: Dictionary = hero.skills[slot]
-			hero.equip_skill(slot, card.id, card.level)
-			hand.append(CardInst.make_skill(old["id"], int(old["level"])))
+			hero.equip_skill(slot, card.id, card.level, card.progress)
+			var back := CardInst.make_skill(old["id"], int(old["level"]))
+			back.progress = int(old.get("progress", 0))
+			hand.append(back)
 		_:
-			hero.equip_skill(slot, card.id, card.level)
+			hero.equip_skill(slot, card.id, card.level, card.progress)
 	hand_changed.emit()
 	_check_goals()
 	return true

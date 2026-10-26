@@ -266,7 +266,10 @@ func _owned(card_id: String) -> String:
 func _skill_hint(skill_id: String) -> String:
 	for s in run.hero.skills:
 		if not s.is_empty() and s["id"] == skill_id:
-			return "ใส่อยู่ L%d · merge ได้ถ้า level เท่ากัน" % s["level"]
+			var lv := int(s["level"])
+			if lv >= 3:
+				return "ใส่อยู่ L3 (สูงสุดแล้ว)"
+			return "ใส่อยู่ L%d · merge เป็น L%d%s" % [lv, lv + 1, " (ต้อง 2 ใบ)" if lv == 2 else ""]
 	var in_hand := 0
 	for c in run.hand:
 		if c.skill and c.id == skill_id:

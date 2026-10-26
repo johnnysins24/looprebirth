@@ -128,3 +128,28 @@ func test_bot_finishes_runs(t) -> void:
 		outcomes[build] = run.summary()
 		t.ok(run.time > 30.0)
 	print("    bot runs: ", outcomes)
+
+
+func test_four_l1_cards_make_l3(t) -> void:
+	var run := _run(8)
+	run.spawns.clear()
+	var cell := Vector2i(-1, -1)
+	for c in run.board.roadside_cells():
+		if run.check_card(CardInst.make("rock"), c)["ok"]:
+			cell = c
+			break
+	var play := func() -> bool:
+		run.hand.append(CardInst.make("rock"))
+		return run.play_card(run.hand.size() - 1, cell)
+	t.ok(play.call(), "place")
+	t.ok(play.call(), "L1 + L1 -> L2")
+	t.eq(run.placed[cell].level, 2)
+	t.ok(play.call(), "an L1 onto L2 counts half")
+	t.eq(run.placed[cell].level, 2)
+	t.eq(run.placed[cell].progress, 1)
+	t.ok(play.call(), "the second one makes L3")
+	t.eq(run.placed[cell].level, 3)
+	t.ok(run.merged_tile_l3)
+	t.ok(not play.call(), "L3 is the top")
+	t.eq(CardRules.merge_step(1, 0, 2)["ok"], false, "a higher card does not go onto a lower one")
+	t.eq(CardRules.merge_step(2, 0, 2)["level"], 3, "an L2 card (a gift) onto L2 makes L3 at once")

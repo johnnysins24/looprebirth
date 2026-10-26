@@ -13,7 +13,7 @@ var xp := 0
 var unspent := 0  ## stat points not spent yet
 var pts := {"str": 0, "agi": 0, "int": 0}
 var hp := 0.0
-var skills: Array = []  ## equipped skill cards: [{id: String, level: int}]
+var skills: Array = []  ## equipped skill cards: [{id: String, level: int, progress: int}] ({} for an empty slot)
 
 ## source name -> {stat: value}. Keys: max_hp, atk, ap, max_mana, attack_speed, evasion,
 ## crit, crit_damage, luck, mana_regen
@@ -137,10 +137,10 @@ func heal(amount: float) -> float:
 	return hp - before
 
 
-func equip_skill(slot: int, skill_id: String, skill_level: int = 1) -> void:
+func equip_skill(slot: int, skill_id: String, skill_level: int = 1, progress: int = 0) -> void:
 	while skills.size() <= slot:
 		skills.append({})
-	skills[slot] = {"id": skill_id, "level": skill_level}
+	skills[slot] = {"id": skill_id, "level": skill_level, "progress": progress}
 
 
 ## One line per derived stat, for the stat panel and the tests.
