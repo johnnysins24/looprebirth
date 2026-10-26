@@ -87,13 +87,73 @@ class ComboDef:
 	var description := ""
 
 
+class PerkDef:
+	extends RefCounted
+	var id := ""
+	var name_th := ""
+	var effect := ""
+
+
+class NodeDef:
+	extends RefCounted
+	var id := ""
+	var branch := ""  ## utility | card_unlock | skill_unlock
+	var name_th := ""
+	var effect_th := ""
+	var ranks := 1
+	var costs: Array[int] = []  ## RP for each rank
+	var requires := ""  ## node id that must have at least `requires_rank` ranks
+	var requires_rank := 0
+
+	func cost_of(rank: int) -> int:
+		return costs[clampi(rank, 1, costs.size()) - 1]
+
+	## The card or skill id an unlock node adds to the pool ("unlock_heal" -> "heal"), or "".
+	func unlock_id() -> String:
+		return id.trim_prefix("unlock_") if id.begins_with("unlock_") else ""
+
+
+class GoalDef:
+	extends RefCounted
+	var id := ""
+	var goal_th := ""
+	var rp := 1
+
+
+class ItemStatDef:
+	extends RefCounted
+	var stat := ""
+	var name_th := ""
+	var lo := 0.0
+	var hi := 0.0
+	var per_level := 0.0
+
+
+class EventDef:
+	extends RefCounted
+	var id := ""
+	var name_th := ""
+	var story_th := ""
+	var a_th := ""
+	var b_th := ""
+
+
 var consts: Dictionary = {}  # String -> float
 var enemies: Dictionary = {}  # String -> EnemyDef
 var skills: Dictionary = {}  # String -> SkillDef
 var cards: Dictionary = {}  # String -> CardDef
 var combos: Dictionary = {}  # String -> ComboDef
+var perks: Dictionary = {}  # String -> PerkDef
+var nodes: Dictionary = {}  # String -> NodeDef
+var goals: Dictionary = {}  # String -> GoalDef
+var events: Dictionary = {}  # String -> EventDef
+var item_stats: Array[ItemStatDef] = []
 var skill_order: Array[String] = []
 var card_order: Array[String] = []
+var perk_order: Array[String] = []
+var node_order: Array[String] = []
+var goal_order: Array[String] = []
+var event_order: Array[String] = []
 
 
 static func load_default() -> GameDb:
@@ -108,6 +168,11 @@ func load_all(dir: String) -> void:
 	_load_skills(dir + "skills.csv", dir + "skill_levels.csv")
 	_load_cards(dir + "cards.csv", dir + "card_levels.csv", dir + "card_text.csv")
 	_load_combos(dir + "combos.csv")
+	_load_perks(dir + "town_perks.csv")
+	_load_tree(dir + "rebirth_tree.csv")
+	_load_goals(dir + "run_goals.csv")
+	_load_events(dir + "events.csv")
+	_load_item_stats(dir + "item_stats.csv")
 
 
 ## Numeric constant from constants.csv. A missing key is a data bug, so it is loud.
@@ -127,6 +192,17 @@ func unlocked_card_ids(unlocked_flags: Array = []) -> Array[String]:
 	for id in card_order:
 		var d: CardDef = cards[id]
 		if d.unlock == "start" or unlocked_flags.has(d.unlock) or unlocked_flags.has(id):
+			out.append(id)
+	return out
+
+
+## Skills that can show up as skill cards: the starting ones plus what the Rebirth tree
+## unlocked (`unlocked_flags` holds skill ids, like it holds card ids for cards).
+func unlocked_skill_ids(unlocked_flags: Array = []) -> Array[String]:
+	var out: Array[String] = []
+	for id in skill_order:
+		var d: SkillDef = skills[id]
+		if d.unlock == "start" or unlocked_flags.has(id):
 			out.append(id)
 	return out
 
@@ -259,3 +335,65 @@ func _load_combos(path: String) -> void:
 		k.value2 = num(r["value2"])
 		k.description = r["description"]
 		combos[k.id] = k
+
+
+func _load_perks(path: String) -> void:
+	for r in read_csv(path):
+		var p := PerkDef.new()
+		p.id = r["id"]
+		p.name_th = r["name_th"]
+		p.effect = r["effect"]
+		perks[p.id] = p
+		perk_order.append(p.id)
+
+
+func _load_tree(path: String) -> void:
+	for r in read_csv(path):
+		var n := NodeDef.new()
+		n.id = r["id"]
+		n.branch = r["branch"]
+		n.name_th = r["name_th"]
+		n.effect_th = r["effect_th"]
+		n.ranks = int(num(r["ranks"]))
+		for part in String(r["cost_per_rank"]).split("/"):
+			n.costs.append(int(num(part)))
+		var req := String(r["requires"])
+		if req != "":
+			var bits := req.split(":")
+			n.requires = bits[0]
+			n.requires_rank = int(bits[1]) if bits.size() > 1 else 1
+		nodes[n.id] = n
+		node_order.append(n.id)
+
+
+func _load_goals(path: String) -> void:
+	for r in read_csv(path):
+		var g := GoalDef.new()
+		g.id = r["id"]
+		g.goal_th = r["goal_th"]
+		g.rp = int(num(r["rebirth_points"]))
+		goals[g.id] = g
+		goal_order.append(g.id)
+
+
+func _load_events(path: String) -> void:
+	for r in read_csv(path):
+		var e := EventDef.new()
+		e.id = r["id"]
+		e.name_th = r["name_th"]
+		e.story_th = r["story_th"]
+		e.a_th = r["a_th"]
+		e.b_th = r["b_th"]
+		events[e.id] = e
+		event_order.append(e.id)
+
+
+func _load_item_stats(path: String) -> void:
+	for r in read_csv(path):
+		var d := ItemStatDef.new()
+		d.stat = r["stat"]
+		d.name_th = r["name_th"]
+		d.lo = num(r["lo"])
+		d.hi = num(r["hi"])
+		d.per_level = num(r["per_level"])
+		item_stats.append(d)

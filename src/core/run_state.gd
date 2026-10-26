@@ -18,6 +18,9 @@ signal combo_formed(combo: GameDb.ComboDef, cell: Vector2i)
 signal hand_changed
 signal toast(text: String)
 signal ended(won: bool)
+signal rp_gained(amount: int)
+signal town_changed(town: Town)
+signal item_equipped(item: Item)
 
 enum Phase { WALKING, FIGHTING, ENDED }
 
@@ -33,7 +36,7 @@ class Spawn:
 	var elite := 0  ## how many of `count` are elites (the last ones)
 	var level := 1  ## encounter card level
 	var xp_mult := 1.0
-	var source := "wild"  ## wild | card | boss
+	var source := "wild"  ## wild | card | boss | raid | duel
 	var alive := true
 
 	func label(db: GameDb) -> String:
@@ -58,6 +61,17 @@ var flags: Dictionary = {}  # Vector2i -> {combo_id: true}, rebuilt when cards c
 var hand: Array[CardInst] = []
 var notices: Array[Notice] = []
 
+var meta: Meta  ## Rebirth tree ranks and unlocks (an empty Meta for tests)
+var town: Town  ## largest building group, rebuilt whenever cards change
+var top_tier := 0  ## highest town tier reached in this run
+var perk_for_tier: Dictionary = {}  # tier -> perk id picked for it
+var equipment: Dictionary = {}  # slot -> Item
+var auto_equip := false  ## put on a drop at once when it beats what is worn
+var event_cells: Dictionary = {}  # road index -> event id ("?" markers)
+var goals: RunGoals
+var rp_earned := 0
+var rerolls_left := 0
+
 var battle: Battle = null  ## the fight in progress
 var last_battle: Battle = null  ## the most recent finished fight, for the log window
 var last_fight: Dictionary = {}  ## {won, spawn, stats, lines} of the latest fight
@@ -68,6 +82,11 @@ var kills := 0
 var laps_done := 0
 var cards_played := 0
 var combos_made := 0
+var fights_won := 0
+var elites_killed := 0
+var combo_kinds: Dictionary = {}  # combo id -> true
+var merged_tile_l3 := false
+var merged_skill_l3 := false
 
 var _fight_spawn: Spawn = null
 var _kills_seen := 0
@@ -76,22 +95,39 @@ var _next_notice := 1
 var _rng_cards := RandomNumberGenerator.new()
 var _rng_spawn := RandomNumberGenerator.new()
 var _rng_battle := RandomNumberGenerator.new()
+var _rng_skill := RandomNumberGenerator.new()
+var _rng_loot := RandomNumberGenerator.new()
+var _rng_event := RandomNumberGenerator.new()
+var _xp_carry := 0.0
 
 
-func _init(p_db: GameDb, p_seed: int) -> void:
+func _init(p_db: GameDb, p_seed: int, p_meta: Meta = null) -> void:
 	db = p_db
 	seed_value = p_seed
+	meta = p_meta if p_meta != null else Meta.new(db)
 	_rng_cards.seed = hash("cards:%d" % p_seed)
 	_rng_spawn.seed = hash("spawn:%d" % p_seed)
 	_rng_battle.seed = hash("battle:%d" % p_seed)
+	_rng_skill.seed = hash("skill:%d" % p_seed)
+	_rng_loot.seed = hash("loot:%d" % p_seed)
+	_rng_event.seed = hash("event:%d" % p_seed)
+	var rng_goals := RandomNumberGenerator.new()
+	rng_goals.seed = hash("goals:%d" % p_seed)
 	board = LoopGenerator.generate(db, p_seed)
 	hero = Hero.new(db)
 	hero.equip_skill(0, "fireball", 1)
 	hero.equip_skill(1, "cleave", 1)
+	if skill_slots() > 2:
+		hero.skills.append({})
+	town = Town.compute(db, board, placed, flags)
+	goals = RunGoals.pick(db, rng_goals, db.ci("goals_base") + meta.rank("more_goals"))
+	rerolls_left = meta.rank("reroll")
 	_refresh_gear()
 	hero.hp = hero.max_hp
 	_roll_wild()
 	_deal_start_hand()
+	for k in meta.rank("quick_start"):
+		_add_notice("lap_card", "การ์ดเริ่มต้น (%d/%d)" % [k + 1, meta.rank("quick_start")], "เลือก 1 จาก %d" % offer_count(), {"offers": make_offers()})
 
 
 # --- time -------------------------------------------------------------------------------
@@ -129,6 +165,8 @@ func _arrive(i: int) -> void:
 		if phase != Phase.WALKING:
 			return
 	_pass_effects(i)
+	if event_cells.has(i):
+		_open_event(i)
 	var sp: Spawn = spawns.get(i)
 	if sp != null and sp.alive:
 		_start_battle(sp)
@@ -158,14 +196,22 @@ func _complete_lap() -> void:
 	lap_completed.emit(lap)
 	if lap >= db.ci("boss_lap"):
 		_spawn_boss()
+		_check_goals()
 		return
 	lap += 1
-	_refresh_gear()
+	rerolls_left = meta.rank("reroll")
 	_respawn_all()
-	var picks := db.ci("lap_card_picks")
+	_roll_event()
+	var picks := db.ci("lap_card_picks") + (1 if perk_active("market") else 0)
 	for k in picks:
-		_add_notice("lap_card", "การ์ดรอบที่ %d (%d/%d)" % [lap - 1, k + 1, picks], "เลือก 1 จาก %d" % db.ci("lap_card_offers"), {"offers": make_offers()})
+		_add_notice("lap_card", "การ์ดรอบที่ %d (%d/%d)" % [lap - 1, k + 1, picks], "เลือก 1 จาก %d" % offer_count(), {"offers": make_offers()})
+	if perk_active("shop"):
+		var wares: Array[Item] = []
+		for k in db.ci("perk_shop_offers"):
+			wares.append(Item.roll(db, _rng_loot, lap, hero.luck, smithy_bonus()))
+		_add_notice("shop", "ร้านค้า รอบที่ %d" % lap, "เลือกของ 1 ชิ้นจาก %d" % wares.size(), {"items": wares})
 	toast.emit("ครบรอบ! เข้ารอบที่ %d" % lap)
+	_check_goals()
 
 
 func _spawn_boss() -> void:
@@ -178,14 +224,15 @@ func _spawn_boss() -> void:
 	toast.emit("บอสปรากฏที่ค่าย!")
 
 
-## Card encounters come back and the wild groups are rolled again (01-run.md step 4).
+## Card encounters come back, town raids and wild groups are rolled again (01-run.md step 4).
 func _respawn_all() -> void:
 	for i in spawns.keys():
-		if spawns[i].source == "wild":
+		if spawns[i].source == "wild" or spawns[i].source == "raid":
 			spawns.erase(i)
 	for cell: Vector2i in placed:
 		if db.cards[placed[cell].id].is_encounter():
 			_sync_card_spawn(cell, true)
+	_spawn_raids()
 	_roll_wild()
 
 
@@ -206,15 +253,60 @@ func _roll_wild() -> void:
 		free.remove_at(pick)
 
 
+## A town draws bandits (03-town.md): one group per tier, on the free road cells nearest to it.
+func _spawn_raids() -> void:
+	if town.tier <= 0:
+		return
+	var cands: Array[Dictionary] = []
+	for i in range(1, board.path.size()):
+		if spawns.has(i) or event_cells.has(i):
+			continue
+		var d := 99
+		for t: Vector2i in town.cells:
+			d = mini(d, maxi(absi(t.x - board.path[i].x), absi(t.y - board.path[i].y)))
+		cands.append({"index": i, "d": d, "tie": _rng_spawn.randf()})
+	cands.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a["d"] < b["d"] or (a["d"] == b["d"] and a["tie"] < b["tie"]))
+	for k in mini(town.tier, cands.size()):
+		var sp := Spawn.new()
+		sp.index = cands[k]["index"]
+		sp.enemy_id = "bandit"
+		sp.count = db.ci("raid_group_size")
+		sp.source = "raid"
+		spawns[sp.index] = sp
+
+
+## 25% a "?" cell appears on an empty road cell (05-items-events.md).
+func _roll_event() -> void:
+	if _rng_event.randf() >= db.c("event_chance"):
+		return
+	var free: Array[int] = []
+	for i in range(1, board.path.size()):
+		if not spawns.has(i) and not event_cells.has(i):
+			free.append(i)
+	if free.is_empty():
+		return
+	var idx := free[_rng_event.randi() % free.size()]
+	event_cells[idx] = db.event_order[_rng_event.randi() % db.event_order.size()]
+
+
+func _open_event(i: int) -> void:
+	var def: GameDb.EventDef = db.events[event_cells[i]]
+	event_cells.erase(i)
+	_add_notice("event", def.name_th, def.story_th, {"event": def.id})
+
+
 # --- fights ----------------------------------------------------------------------------------
 
 
 func _start_battle(sp: Spawn) -> void:
 	var def: GameDb.EnemyDef = db.enemies[sp.enemy_id]
+	var hp_mult := 1.0
+	if sp.source != "boss" and perk_active("guard_post") and town.within(board.path[sp.index], db.ci("perk_guard_range")):
+		hp_mult = db.c("perk_guard_hp")
 	var foes: Array[Foe] = []
 	for k in sp.count:
 		var is_elite := k >= sp.count - sp.elite
-		foes.append(Foe.make(db, def, lap, is_elite, sp.xp_mult, _rng_battle))
+		foes.append(Foe.make(db, def, lap, is_elite, sp.xp_mult, _rng_battle, hp_mult))
 	battle = Battle.new(db, hero, foes, _rng_battle)
 	_fight_spawn = sp
 	_kills_seen = 0
@@ -223,13 +315,31 @@ func _start_battle(sp: Spawn) -> void:
 	battle_started.emit(battle)
 
 
+## API: accept the deserter's duel (event). The elite bandit fights right here.
+func start_duel() -> bool:
+	if phase != Phase.WALKING:
+		return false
+	var sp := Spawn.new()
+	sp.index = tile_index
+	sp.enemy_id = "bandit"
+	sp.count = 1
+	sp.elite = 1
+	sp.source = "duel"
+	_start_battle(sp)
+	return true
+
+
 func _fight(dt: float) -> void:
 	battle.step(dt)
 	while _kills_seen < battle.kills.size():
 		var f: Foe = battle.kills[_kills_seen]
 		_kills_seen += 1
 		kills += 1
-		_award_xp(f.xp)
+		_kill_xp(f.xp)
+		if f.elite:
+			elites_killed += 1
+		if _fight_spawn.source != "boss":
+			_roll_drops(f)
 	if not battle.finished:
 		return
 	fights += 1
@@ -244,10 +354,14 @@ func _fight(dt: float) -> void:
 	var boss_down: bool = finished.hero_won and _fight_spawn.source == "boss"
 	if finished.hero_won:
 		_fight_spawn.alive = false
+		fights_won += 1
+		if _fight_spawn.source == "duel":
+			_add_skill_notice("ชนะการดวล")
 	phase = Phase.WALKING
 	battle = null
 	last_battle = finished
 	battle_ended.emit(finished)
+	_check_goals()
 	if not finished.hero_won:
 		_end_run(false)
 	elif boss_down:
@@ -255,13 +369,19 @@ func _fight(dt: float) -> void:
 
 
 func _end_run(did_win: bool) -> void:
+	if did_win:
+		_gain_rp(db.ci("boss_rp"))
 	phase = Phase.ENDED
 	won = did_win
+	meta.record_run(did_win, mini(lap, db.ci("boss_lap")), seed_value)
 	ended.emit(did_win)
 
 
 ## Run totals for the end screen.
 func summary() -> Dictionary:
+	var goal_rows: Array[Dictionary] = []
+	for g in goals.list:
+		goal_rows.append({"text": g.text, "done": g.done, "rp": g.rp})
 	return {
 		"won": won,
 		"seed": seed_value,
@@ -272,10 +392,55 @@ func summary() -> Dictionary:
 		"kills": kills,
 		"cards_played": cards_played,
 		"combos": combos_made,
+		"rp": rp_earned,
+		"goals": goal_rows,
+		"town_tier": top_tier,
 	}
 
 
+func _gain_rp(amount: int) -> void:
+	rp_earned += amount
+	meta.add_rp(amount)
+	rp_gained.emit(amount)
+
+
+# --- run goals ---------------------------------------------------------------------------------
+
+
+func _check_goals() -> void:
+	for g in goals.check(self):
+		_gain_rp(g.rp)
+		_add_notice("info", "เป้าหมายสำเร็จ +%d RP" % g.rp, g.text, {}, 5.0)
+		toast.emit("เป้าหมายสำเร็จ: %s (+%d RP)" % [g.text, g.rp])
+
+
+func encounter_count() -> int:
+	var n := 0
+	for c: Vector2i in placed:
+		if db.cards[placed[c].id].is_encounter():
+			n += 1
+	return n
+
+
+## Gear slots holding a rare or epic item.
+func rare_slots() -> int:
+	var n := 0
+	for slot in equipment:
+		if (equipment[slot] as Item).rarity >= Item.Rarity.RARE:
+			n += 1
+	return n
+
+
 # --- XP, level, stat points ---------------------------------------------------------------
+
+
+## XP from a kill, with the school's bonus; fractions carry over so nothing is lost.
+func _kill_xp(base: int) -> void:
+	var mult := db.c("perk_school_xp") if perk_active("school") else 1.0
+	_xp_carry += base * mult
+	var whole := int(_xp_carry)
+	_xp_carry -= whole
+	_award_xp(whole)
 
 
 func _award_xp(amount: int) -> void:
@@ -285,9 +450,10 @@ func _award_xp(amount: int) -> void:
 	for k in gained:
 		var lv := hero.level - gained + k + 1
 		_add_notice("stat", "ขึ้น level %d" % lv, "แต้ม stat +%d" % db.ci("points_per_level"), {"remaining": db.ci("points_per_level")})
+		_add_skill_notice("ขึ้น level %d" % lv)
 		leveled.emit(lv)
 	if gained > 0:
-		_refresh_gear()
+		_check_goals()
 
 
 ## API: spend one stat point ("str" | "agi" | "int"). Uses up the oldest level-up notice.
@@ -300,37 +466,167 @@ func spend_point(stat: String) -> bool:
 			if n.payload["remaining"] <= 0:
 				remove_notice(n)
 			break
-	_refresh_gear()
 	return true
 
 
-## Stand-in for items and skill cards until phase 4: average gear and skill levels for the
-## current lap, the same assumptions tools/balance_sim.py uses. Switch off with
-## gear_standin = 0 in constants.csv.
-func _refresh_gear() -> void:
-	if db.c("gear_standin") == 0.0:
-		hero.set_mods("gear_standin", {})
+# --- town and perks (03-town.md) ----------------------------------------------------------------
+
+
+func skill_slots() -> int:
+	return db.ci("skill_slots") + meta.rank("third_skill_slot")
+
+
+## A perk works while the town is at least at the tier it was picked for.
+func perk_active(id: String) -> bool:
+	for tier: int in perk_for_tier:
+		if perk_for_tier[tier] == id and town.tier >= tier:
+			return true
+	return false
+
+
+func perks_picked() -> Array[String]:
+	var out: Array[String] = []
+	for tier: int in perk_for_tier:
+		out.append(perk_for_tier[tier])
+	return out
+
+
+func _update_town() -> void:
+	var old_tier := town.tier
+	var old_count := town.count
+	town = Town.compute(db, board, placed, flags)
+	while top_tier < town.tier:
+		top_tier += 1
+		_offer_perk(top_tier)
+		toast.emit("%s ขั้น %d: เลือก perk" % [Town.NAMES[top_tier], top_tier])
+	if old_tier != town.tier or old_count != town.count:
+		town_changed.emit(town)
+
+
+func _offer_perk(tier: int) -> void:
+	var taken := {}
+	for id in perks_picked():
+		taken[id] = true
+	for n in notices:
+		if n.kind == "town_perk":
+			for id in n.payload["options"]:
+				taken[id] = true
+	var pool: Array[String] = []
+	for id in db.perk_order:
+		if not taken.has(id):
+			pool.append(id)
+	var options: Array[String] = []
+	while options.size() < 3 and not pool.is_empty():
+		options.append(pool.pop_at(_rng_event.randi() % pool.size()))
+	if options.is_empty():
 		return
-	var p: Dictionary = hero.pts
-	var caster: bool = p["int"] > 0 and p["int"] >= p["str"] and p["int"] >= p["agi"]
-	var m := {
-		"atk": db.c("gear_watk_base") + db.c("gear_watk_per_lap") * lap,
-		"max_hp": db.c("gear_hp_base") + db.c("gear_hp_per_lap") * lap,
-		"crit": db.c("gear_crit"),
-	}
-	if caster:
-		m["ap"] = db.c("gear_ap_base") + db.c("gear_ap_per_lap") * lap
-	hero.set_mods("gear_standin", m)
-	var lv0 := 1
-	var lv1 := 1
-	if lap >= 8:
-		lv0 = 3
-		lv1 = 2
-	elif lap >= 5:
-		lv0 = 2
-	if hero.skills.size() > 1:
-		hero.skills[0]["level"] = lv0
-		hero.skills[1]["level"] = lv1
+	_add_notice("town_perk", "%s: เลือก perk" % Town.NAMES[tier], "ขั้น %d · เลือก 1 จาก %d" % [tier, options.size()], {"tier": tier, "options": options})
+
+
+## API: pick option `index` of a town perk notice.
+func choose_perk(n: Notice, index: int) -> bool:
+	if n.kind != "town_perk" or not notices.has(n):
+		return false
+	var options: Array = n.payload["options"]
+	if index < 0 or index >= options.size():
+		return false
+	var id: String = options[index]
+	perk_for_tier[int(n.payload["tier"])] = id
+	remove_notice(n)
+	toast.emit("perk: %s" % db.perks[id].name_th)
+	if id == "training_yard":
+		var pts := db.ci("perk_yard_points")
+		hero.unspent += pts
+		_add_notice("stat", "ลานฝึก", "แต้ม stat +%d" % pts, {"remaining": pts})
+	elif id == "bell_tower":
+		hand_changed.emit()
+	_check_goals()
+	return true
+
+
+# --- items (05-items-events.md) --------------------------------------------------------------------
+
+
+## +x to the rare chance from smithies on the map.
+func smithy_bonus() -> float:
+	var total := 0.0
+	for c: Vector2i in placed:
+		if placed[c].id == "smithy":
+			total += db.cards["smithy"].level_params(placed[c].level)["value"]
+	return total
+
+
+func _roll_drops(f: Foe) -> void:
+	var chance := 1.0 if f.elite else minf(1.0, f.drop_chance * _fight_spawn.xp_mult)
+	if _rng_loot.randf() < chance:
+		offer_item(Item.roll(db, _rng_loot, lap, hero.luck, smithy_bonus()))
+	if f.elite and _rng_loot.randf() < db.c("skill_elite_drop"):
+		_add_skill_notice("elite ดรอป")
+
+
+## Puts a new item in the notice list, or wears it at once when auto-equip is on and it is better.
+func offer_item(item: Item) -> void:
+	if auto_equip and item.better_than(equipment.get(item.slot)):
+		_wear(item)
+		toast.emit("ใส่ %s อัตโนมัติ" % item.title())
+		return
+	var pending: Array[Notice] = []
+	for n in notices:
+		if n.kind == "item":
+			pending.append(n)
+	if pending.size() >= db.ci("item_max_pending"):
+		var old: Item = pending[0].payload["item"]
+		remove_notice(pending[0])
+		var xp := db.ci("item_xp_per_level") * old.level
+		toast.emit("ของเต็ม: %s กลายเป็น XP +%d" % [old.title(), xp])
+		_award_xp(xp)
+	_add_notice("item", item.title(), "%s · %s" % [item.rarity_name(), Item.SLOT_NAMES[item.slot]], {"item": item})
+
+
+func _wear(item: Item) -> void:
+	equipment[item.slot] = item
+	_refresh_gear()
+	item_equipped.emit(item)
+	_check_goals()
+
+
+## API: put on the item of an item notice (what it replaces is thrown away).
+func equip_item(n: Notice) -> bool:
+	if n.kind != "item" or not notices.has(n):
+		return false
+	remove_notice(n)
+	_wear(n.payload["item"])
+	return true
+
+
+## API: throw the item of an item notice away.
+func discard_item(n: Notice) -> bool:
+	if n.kind != "item" or not notices.has(n):
+		return false
+	remove_notice(n)
+	return true
+
+
+## API: take ware `index` of a shop notice (it then follows the normal item rules).
+func buy_ware(n: Notice, index: int) -> bool:
+	if n.kind != "shop" or not notices.has(n):
+		return false
+	var wares: Array = n.payload["items"]
+	if index < 0 or index >= wares.size():
+		return false
+	remove_notice(n)
+	offer_item(wares[index])
+	return true
+
+
+## Gear stats are the sum of the worn items.
+func _refresh_gear() -> void:
+	var m := {}
+	for slot in equipment:
+		var it: Item = equipment[slot]
+		for k in it.stats:
+			m[k] = float(m.get(k, 0.0)) + float(it.stats[k])
+	hero.set_mods("gear", m)
 
 
 # --- notices ------------------------------------------------------------------------------------
@@ -371,15 +667,27 @@ func first_notice(kind: String) -> Notice:
 	return null
 
 
+## Notices the player can open (everything except plain information).
+static func is_actionable(n: Notice) -> bool:
+	return n.kind != "info"
+
+
 # --- cards ----------------------------------------------------------------------------------------
 
 
 func hand_limit() -> int:
-	return db.ci("hand_size")
+	var n := db.ci("hand_size") + meta.rank("bigger_hand")
+	if perk_active("bell_tower"):
+		n += db.ci("perk_bell_hand")
+	return n
+
+
+func card_name(card: CardInst) -> String:
+	return db.skills[card.id].name_th if card.skill else db.cards[card.id].name_th
 
 
 func _deal_start_hand() -> void:
-	var pool := db.unlocked_card_ids()
+	var pool := db.unlocked_card_ids(meta.unlocked_flags())
 	var terrain: Array[String] = []
 	var enc: Array[String] = []
 	for id in pool:
@@ -397,46 +705,57 @@ func _deal_start_hand() -> void:
 func give_card(card: CardInst) -> void:
 	if hand.size() >= hand_limit():
 		var gone: CardInst = hand.pop_front()
-		toast.emit("มือเต็ม: %s ถูกไล่ออก (+%d XP)" % [db.cards[gone.id].name_th, db.ci("discard_xp")])
-		_award_xp(db.ci("discard_xp"))
+		var xp := db.ci("discard_xp") * (db.ci("perk_bell_discard") if perk_active("bell_tower") else 1)
+		toast.emit("มือเต็ม: %s ถูกไล่ออก (+%d XP)" % [card_name(gone), xp])
+		_award_xp(xp)
 	hand.append(card)
 	hand_changed.emit()
+
+
+func offer_count() -> int:
+	return db.ci("lap_card_offers") + (1 if meta.rank("sharp_eye") >= 1 else 0)
 
 
 ## Cards to offer for one lap pick. At least one is a card the player already holds or has
 ## on the map (when there is one), so merging stays within reach (02-cards.md).
 func make_offers() -> Array[CardInst]:
-	var pool := db.unlocked_card_ids()
-	var count := mini(db.ci("lap_card_offers"), pool.size())
+	var pool := db.unlocked_card_ids(meta.unlocked_flags())
+	var count := mini(offer_count(), pool.size())
 	var owned: Array[String] = []
 	for c in hand:
-		if pool.has(c.id) and not owned.has(c.id):
+		if not c.skill and pool.has(c.id) and not owned.has(c.id):
 			owned.append(c.id)
 	for cell: Vector2i in placed:
 		var id: String = placed[cell].id
 		if pool.has(id) and not owned.has(id):
 			owned.append(id)
+	var picks := _pick_offers(_rng_cards, pool, owned, count)
+	var out: Array[CardInst] = []
+	for id in picks:
+		out.append(CardInst.make(id))
+	return out
+
+
+## `count` distinct ids from `pool`, the first one drawn from `owned` when that is not empty,
+## then shuffled so the helper card is not always first.
+func _pick_offers(rng: RandomNumberGenerator, pool: Array[String], owned: Array[String], count: int) -> Array[String]:
 	var picks: Array[String] = []
 	if not owned.is_empty():
-		picks.append(owned[_rng_cards.randi() % owned.size()])
+		picks.append(owned[rng.randi() % owned.size()])
 	var rest: Array[String] = []
 	for id in pool:
 		if not picks.has(id):
 			rest.append(id)
 	while picks.size() < count and not rest.is_empty():
-		var k := _rng_cards.randi() % rest.size()
+		var k := rng.randi() % rest.size()
 		picks.append(rest[k])
 		rest.remove_at(k)
-	# shuffle so the helper card is not always first
 	for i in range(picks.size() - 1, 0, -1):
-		var j := _rng_cards.randi() % (i + 1)
+		var j := rng.randi() % (i + 1)
 		var tmp := picks[i]
 		picks[i] = picks[j]
 		picks[j] = tmp
-	var out: Array[CardInst] = []
-	for id in picks:
-		out.append(CardInst.make(id))
-	return out
+	return picks
 
 
 ## API: take offer `index` of a lap-card notice into the hand.
@@ -451,6 +770,15 @@ func choose_offer(n: Notice, index: int) -> bool:
 	return true
 
 
+## API: draw the offered cards of a lap-card notice again (Rebirth tree "สุ่มใหม่").
+func reroll_offers(n: Notice) -> bool:
+	if n.kind != "lap_card" or not notices.has(n) or rerolls_left <= 0:
+		return false
+	rerolls_left -= 1
+	n.payload["offers"] = make_offers()
+	return true
+
+
 ## What would happen if hand card `hand_index` were played on `cell`.
 ## {ok, reason, action, level, combos: [ComboDef] that would form}
 func check_place(hand_index: int, cell: Vector2i) -> Dictionary:
@@ -460,15 +788,35 @@ func check_place(hand_index: int, cell: Vector2i) -> Dictionary:
 
 
 func check_card(card: CardInst, cell: Vector2i) -> Dictionary:
+	if card.skill:
+		return {"ok": false, "reason": "skill card ลากไปช่อง skill ของฮีโร่", "action": "place", "level": card.level, "combos": []}
 	var res := CardRules.check_place(db, board, placed, card, cell, tile_index)
 	var combos: Array[GameDb.ComboDef] = []
 	if res["ok"] and res["action"] == "place":
-		var after := placed.duplicate()
-		after[cell] = card.copy()
-		for c in CardRules.new_combos(db, board, placed, after):
-			combos.append(db.combos[c["id"]])
+		if db.cards[card.id].is_encounter() and event_cells.has(board.index_of(cell)):
+			res["ok"] = false
+			res["reason"] = "มีจุด ? อยู่ช่องนี้"
+		elif _carpenter_applies(card, cell):
+			res["level"] = 2
+		if res["ok"]:
+			var after := placed.duplicate()
+			var copy := card.copy()
+			copy.level = res["level"]
+			after[cell] = copy
+			for c in CardRules.new_combos(db, board, placed, after):
+				combos.append(db.combos[c["id"]])
 	res["combos"] = combos
 	return res
+
+
+## Carpenter: a new house that touches the town starts at L2.
+func _carpenter_applies(card: CardInst, cell: Vector2i) -> bool:
+	if card.id != "house" or card.level != 1 or not perk_active("carpenter"):
+		return false
+	for n in board.neighbors4(cell):
+		if town.has_cell(n):
+			return true
+	return false
 
 
 ## API: play hand card `hand_index` on `cell` (place, merge, or clear).
@@ -485,12 +833,15 @@ func play_card(hand_index: int, cell: Vector2i) -> bool:
 	match action:
 		"merge":
 			(placed[cell] as CardInst).level += 1
+			if (placed[cell] as CardInst).level >= 3:
+				merged_tile_l3 = true
 		"clear":
 			var gone: CardInst = placed[cell]
 			placed.erase(cell)
 			spawns.erase(board.index_of(cell))
 			hand.append(CardInst.make(gone.id))
 		_:
+			card.level = res["level"]
 			placed[cell] = card
 	cards_played += 1
 	_cards_changed(cell, before)
@@ -504,12 +855,15 @@ func _cards_changed(cell: Vector2i, before: Dictionary) -> void:
 	hero.set_mods("terrain", CardRules.terrain_mods(db, board, placed))
 	for c in CardRules.new_combos(db, board, before, placed):
 		combos_made += 1
+		combo_kinds[c["id"]] = true
 		combo_formed.emit(db.combos[c["id"]], c["b"])
 		toast.emit("combo: %s" % db.combos[c["id"]].name_th)
 	# encounter cards: (re)build the group on their road cell
 	for c: Vector2i in placed:
 		if db.cards[placed[c].id].is_encounter():
 			_sync_card_spawn(c, c == cell)
+	_update_town()
+	_check_goals()
 
 
 ## Makes the Spawn on an encounter card's road cell match the card. `revive` brings the
@@ -534,7 +888,8 @@ func _sync_card_spawn(cell: Vector2i, revive: bool) -> void:
 	sp.alive = true if revive else was_alive
 
 
-## Walking onto a road cell: cards touching it heal the hero (meadow, house, hot spring).
+## Walking onto a road cell: cards touching it heal the hero (meadow, house, hot spring), and
+## so does the field hospital when the cell touches the town.
 func _pass_effects(i: int) -> void:
 	for n in board.neighbors8(board.path[i]):
 		if not placed.has(n):
@@ -544,6 +899,139 @@ func _pass_effects(i: int) -> void:
 			var got := hero.heal(amount)
 			if got > 0.0:
 				healed.emit(got, n)
+	if perk_active("field_hospital") and town.touches(board.path[i]):
+		var got := hero.heal(hero.max_hp * db.c("perk_hospital_pct"))
+		if got > 0.0:
+			healed.emit(got, Vector2i(-1, -1))
+
+
+# --- skill cards (04-hero-combat.md) -------------------------------------------------------------------
+
+
+func _add_skill_notice(why: String) -> void:
+	var offers := make_skill_offers()
+	if offers.is_empty():
+		return
+	_add_notice("skill_card", "skill card · %s" % why, "เลือก 1 จาก %d" % offers.size(), {"offers": offers})
+
+
+## Skill cards to offer: the library gives 4, and at least one is a skill the hero wears or holds.
+func make_skill_offers() -> Array[CardInst]:
+	var pool := db.unlocked_skill_ids(meta.unlocked_flags())
+	var count := mini(db.ci("perk_library_offers") if perk_active("library") else db.ci("lap_card_offers"), pool.size())
+	var owned: Array[String] = []
+	for s in hero.skills:
+		if not s.is_empty() and not owned.has(s["id"]):
+			owned.append(s["id"])
+	for c in hand:
+		if c.skill and not owned.has(c.id):
+			owned.append(c.id)
+	var out: Array[CardInst] = []
+	for id in _pick_offers(_rng_skill, pool, owned, count):
+		out.append(CardInst.make_skill(id))
+	return out
+
+
+## API: take offer `index` of a skill-card notice into the hand.
+func choose_skill_offer(n: Notice, index: int) -> bool:
+	if n.kind != "skill_card" or not notices.has(n):
+		return false
+	var offers: Array = n.payload["offers"]
+	if index < 0 or index >= offers.size():
+		return false
+	remove_notice(n)
+	give_card(offers[index])
+	return true
+
+
+## What dropping skill card `card` on hero skill slot `slot` would do:
+## {ok, reason, action: "equip" | "merge" | "swap", level}.
+func check_skill_card(card: CardInst, slot: int) -> Dictionary:
+	var res := {"ok": false, "reason": "", "action": "equip", "level": card.level}
+	if not card.skill:
+		res["reason"] = "การ์ดใบนี้วางบนแผนที่"
+		return res
+	if slot < 0 or slot >= skill_slots():
+		res["reason"] = "ไม่มีช่อง skill นี้"
+		return res
+	var cur: Dictionary = hero.skills[slot] if slot < hero.skills.size() else {}
+	if cur.is_empty():
+		res["ok"] = true
+		return res
+	if cur["id"] != card.id:
+		res["ok"] = true
+		res["action"] = "swap"
+		return res
+	if int(cur["level"]) != card.level:
+		res["reason"] = "ต้อง level เท่ากันถึง merge ได้"
+	elif card.level >= 3:
+		res["reason"] = "level สูงสุดแล้ว"
+	else:
+		res["ok"] = true
+		res["action"] = "merge"
+		res["level"] = card.level + 1
+	return res
+
+
+## API: drop hand card `hand_index` on hero skill slot `slot` (equip, merge or swap).
+func play_skill_card(hand_index: int, slot: int) -> bool:
+	if hand_index < 0 or hand_index >= hand.size() or phase == Phase.ENDED:
+		return false
+	var card: CardInst = hand[hand_index]
+	var res := check_skill_card(card, slot)
+	if not res["ok"]:
+		return false
+	hand.remove_at(hand_index)
+	match res["action"]:
+		"merge":
+			hero.skills[slot]["level"] = res["level"]
+			if int(res["level"]) >= 3:
+				merged_skill_l3 = true
+		"swap":
+			var old: Dictionary = hero.skills[slot]
+			hero.equip_skill(slot, card.id, card.level)
+			hand.append(CardInst.make_skill(old["id"], int(old["level"])))
+		_:
+			hero.equip_skill(slot, card.id, card.level)
+	hand_changed.emit()
+	_check_goals()
+	return true
+
+
+# --- events ----------------------------------------------------------------------------------------------
+
+
+## API: pick option 0 or 1 of an event notice. `extra` carries the merchant's chosen hand
+## indexes: {"cards": [i, j]}.
+func resolve_event(n: Notice, option: int, extra: Dictionary = {}) -> bool:
+	if n.kind != "event" or not notices.has(n):
+		return false
+	var ok := RunEvents.resolve(self, n, option, extra)
+	if ok:
+		remove_notice(n)
+	return ok
+
+
+## HP the hero can give without dying: `share` of `base`, never taking the last point.
+func hp_cost(base: float, share: float) -> float:
+	return maxf(0.0, minf(base * share, hero.hp - 1.0))
+
+
+func lose_hp(amount: float) -> void:
+	hero.hp = maxf(1.0, hero.hp - amount)
+
+
+func new_item(min_rarity: int = Item.Rarity.COMMON) -> Item:
+	return Item.roll(db, _rng_loot, lap, hero.luck, smithy_bonus(), "", min_rarity)
+
+
+func event_random() -> float:
+	return _rng_event.randf()
+
+
+func grant_stat_points(count: int, title: String) -> void:
+	hero.unspent += count
+	_add_notice("stat", title, "แต้ม stat +%d" % count, {"remaining": count})
 
 
 # --- debug --------------------------------------------------------------------------------------

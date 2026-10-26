@@ -20,6 +20,7 @@ func _init(p_run: RunState, p_build: String = "str", p_seed: int = 1) -> void:
 func act() -> void:
 	_spend_points()
 	_take_offers()
+	_take_other_notices()
 	_play_cards()
 
 
@@ -48,6 +49,69 @@ func _take_offers() -> void:
 		run.choose_offer(n, best)
 
 
+const PERK_ORDER := ["training_yard", "school", "market", "field_hospital", "guard_post", "carpenter", "library", "bell_tower", "shop"]
+
+
+## Skill cards, items, shop wares, town perks and events.
+func _take_other_notices() -> void:
+	for n in run.notices.duplicate():
+		match n.kind:
+			"skill_card":
+				var offers: Array = n.payload["offers"]
+				var pick := rng.randi() % offers.size()
+				for i in offers.size():
+					for s in run.hero.skills:
+						if not s.is_empty() and s["id"] == offers[i].id:
+							pick = i
+				run.choose_skill_offer(n, pick)
+			"item":
+				var item: Item = n.payload["item"]
+				if item.better_than(run.equipment.get(item.slot)):
+					run.equip_item(n)
+				else:
+					run.discard_item(n)
+			"shop":
+				var best := 0
+				var wares: Array = n.payload["items"]
+				for i in wares.size():
+					if (wares[i] as Item).rarity > (wares[best] as Item).rarity:
+						best = i
+				run.buy_ware(n, best)
+			"town_perk":
+				var options: Array = n.payload["options"]
+				var best := 0
+				for i in options.size():
+					if PERK_ORDER.find(options[i]) < PERK_ORDER.find(options[best]):
+						best = i
+				run.choose_perk(n, best)
+			"event":
+				_event(n)
+
+
+func _event(n: Notice) -> void:
+	var hp := run.hero.hp / run.hero.max_hp
+	var option := 1
+	var extra := {}
+	match n.payload["event"]:
+		"shrine":
+			option = 0 if hp >= 0.6 else 1
+		"merchant":
+			var idx: Array[int] = []
+			for i in run.hand.size():
+				if not run.hand[i].skill and idx.size() < 2:
+					idx.append(i)
+			if idx.size() == 2 and run.hand.size() >= 6:
+				option = 0
+				extra = {"cards": idx}
+		"traveler":
+			option = 0 if hp >= 0.7 else 1
+		"fountain":
+			option = 0 if hp >= 0.5 else 1
+		"deserter":
+			option = 0 if hp >= 0.85 else 1
+	run.resolve_event(n, option, extra)
+
+
 ## Prefer cards that merge with something already out, then fighting and healing cards.
 func _score(card: CardInst) -> float:
 	var s := rng.randf()
@@ -73,6 +137,8 @@ func _play_cards() -> void:
 
 func _try_play(hand_index: int) -> bool:
 	var card := run.hand[hand_index]
+	if card.skill:
+		return _try_skill(hand_index)
 	var cells: Array[Vector2i] = []
 	# merging first
 	for cell: Vector2i in run.placed:
@@ -104,4 +170,23 @@ func _try_play(hand_index: int) -> bool:
 			continue
 		if run.check_place(hand_index, c)["ok"]:
 			return run.play_card(hand_index, c)
+	return false
+
+
+## Merge a skill card into the slot that holds it, fill an empty slot, or swap in a higher level.
+func _try_skill(hand_index: int) -> bool:
+	var card := run.hand[hand_index]
+	var slots := run.skill_slots()
+	for slot in slots:
+		var res := run.check_skill_card(card, slot)
+		if res["ok"] and res["action"] == "merge":
+			return run.play_skill_card(hand_index, slot)
+	for slot in slots:
+		var res := run.check_skill_card(card, slot)
+		if res["ok"] and res["action"] == "equip":
+			return run.play_skill_card(hand_index, slot)
+	for slot in slots:
+		var res := run.check_skill_card(card, slot)
+		if res["ok"] and res["action"] == "swap" and card.level > int(run.hero.skills[slot]["level"]):
+			return run.play_skill_card(hand_index, slot)
 	return false

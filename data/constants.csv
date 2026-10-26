@@ -53,11 +53,42 @@ hand_start_cards,3,cards in the opening hand
 lap_card_picks,2,card choices at every lap
 lap_card_offers,3,cards offered per choice
 discard_xp,5,XP when the oldest card is pushed out of a full hand
-gear_watk_base,3,stand-in gear (phase 1 only) - weapon ATK = base + per_lap * lap
+gear_watk_base,3,item main stat: weapon ATK = base + per_lap * item level
 gear_watk_per_lap,2,
-gear_hp_base,15,stand-in gear armor HP = base + per_lap * lap
+gear_hp_base,15,armor max HP = base + per_lap * item level
 gear_hp_per_lap,10,
-gear_ap_base,2,stand-in gear AP (casters only) = base + per_lap * lap
+gear_ap_base,2,trinket with AP as main stat = base + per_lap * item level
 gear_ap_per_lap,2,
-gear_crit,0.05,stand-in gear crit chance
-gear_standin,1,1 = auto-grant average gear and skill levels like tools/balance_sim.py (phase 1 only; remove when items and skill cards land)
+gear_crit,0.05,trinket with crit as main stat
+raid_group_size,2,bandits in one town raid group (03-town.md); one group per town tier at every lap
+town_tier1,3,buildings counted for a village (tier 1)
+town_tier2,6,buildings counted for a town (tier 2)
+perk_hospital_pct,0.1,field hospital: max HP healed when walking a road cell next to the town
+perk_guard_range,2,guard post: road cells within this many cells of the town
+perk_guard_hp,0.8,guard post: enemy HP multiplier
+perk_school_xp,1.15,school: XP multiplier on kills
+perk_bell_hand,2,bell tower: extra hand size
+perk_bell_discard,2,bell tower: multiplier on the XP of a pushed-out card
+perk_yard_points,3,training yard: stat points
+perk_library_offers,4,library: skill cards offered at a level up
+perk_shop_offers,2,shop: items offered every lap
+item_rare_chance,0.25,05-items-events: base chance of a rare drop
+item_epic_chance,0.05,base chance of an epic drop
+item_luck_rare,0.01,rare chance added per luck point (taken from common)
+item_luck_epic,0.002,epic chance added per luck point
+item_rare_mult,1.3,main stat multiplier of a rare item
+item_epic_mult,1.6,main stat multiplier of an epic item
+item_max_pending,5,item notices that can wait; the oldest beyond that becomes XP
+item_xp_per_level,3,XP an overflowing item turns into = this x item level
+gear_luck,5,trinket with luck as its main stat
+skill_elite_drop,0.25,chance an elite drops a skill card
+skill_slots,2,hero skill slots (Rebirth tree can add one)
+event_chance,0.25,chance per lap that a ? cell appears
+event_shrine_hp,0.2,old shrine: share of current HP paid
+event_traveler_hp,0.15,wounded traveller: share of max HP paid
+event_fountain_win,0.5,mysterious fountain: chance of the good outcome
+event_fountain_points,3,mysterious fountain: stat points on the good outcome
+event_fountain_hp,0.1,mysterious fountain: share of current HP lost on the bad outcome
+event_trade_cards,2,wandering merchant: hand cards he asks for
+goals_base,3,run goals per run
+boss_rp,2,Rebirth points for killing the boss

@@ -1,15 +1,15 @@
-id,branch,name_th,effect_per_rank,ranks,cost_per_rank,requires
-bigger_hand,utility,มือใหญ่ขึ้น,hand size +1,3,1/2/3,
-sharp_eye,utility,ตาแหลม,lap reward offers 4 cards instead of 3,1,2,bigger_hand:1
-reroll,utility,สุ่มใหม่,reroll the offered cards +1 time per lap,2,2/3,sharp_eye:1
-quick_start,utility,ออกตัวไว,start the run with +1 card pick,2,1/2,
-map_sketch,utility,แผนที่ร่าง,preview the loop before the run and reroll it +1 time,2,1/2,
-more_goals,utility,เป้าหมายเพิ่ม,run goals +1,2,2/3,
-third_skill_slot,utility,ช่อง skill ที่ 3,hero gets a third skill slot,1,4,
-unlock_bandit_camp,card_unlock,ค่ายโจร,add Bandit Camp to the card pool,1,1,
-unlock_shrine,card_unlock,ศาลเจ้า,add Shrine to the card pool,1,1,
-unlock_smithy,card_unlock,โรงตีเหล็ก,add Smithy to the card pool,1,1,
-unlock_clear,card_unlock,รื้อถอน,add Clear to the card pool,1,2,
-unlock_heal,skill_unlock,ฟื้นฟู,add Heal skill card to the pool,1,1,
-unlock_haste,skill_unlock,เร่งความเร็ว,add Haste skill card to the pool,1,1,
-unlock_mana_shield,skill_unlock,โล่มานา,add Mana Shield skill card to the pool,1,1,
+id,branch,name_th,effect_per_rank,ranks,cost_per_rank,requires,effect_th
+bigger_hand,utility,มือใหญ่ขึ้น,hand size +1,3,1/2/3,,ถือการ์ดได้ +1 ใบ
+sharp_eye,utility,ตาแหลม,lap reward offers 4 cards instead of 3,1,2,bigger_hand:1,รางวัลรอบเสนอ 4 ใบแทน 3
+reroll,utility,สุ่มใหม่,reroll the offered cards +1 time per lap,2,2/3,sharp_eye:1,สุ่มการ์ดที่เสนอใหม่ได้ +1 ครั้งต่อรอบ
+quick_start,utility,ออกตัวไว,start the run with +1 card pick,2,1/2,,เริ่ม run ด้วยการเลือกการ์ดเพิ่ม +1 ครั้ง
+map_sketch,utility,แผนที่ร่าง,preview the loop before the run and reroll it +1 time,2,1/2,,ดูรูป loop ก่อนเริ่ม สุ่มใหม่ได้ +1 ครั้ง
+more_goals,utility,เป้าหมายเพิ่ม,run goals +1,2,2/3,,เป้าหมาย run +1 ข้อ
+third_skill_slot,utility,ช่อง skill ที่ 3,hero gets a third skill slot,1,4,,ฮีโร่มีช่อง skill ที่ 3
+unlock_bandit_camp,card_unlock,ค่ายโจร,add Bandit Camp to the card pool,1,1,,การ์ดค่ายโจรเข้า pool
+unlock_shrine,card_unlock,ศาลเจ้า,add Shrine to the card pool,1,1,,การ์ดศาลเจ้าเข้า pool
+unlock_smithy,card_unlock,โรงตีเหล็ก,add Smithy to the card pool,1,1,,การ์ดโรงตีเหล็กเข้า pool
+unlock_clear,card_unlock,รื้อถอน,add Clear to the card pool,1,2,,การ์ดรื้อถอนเข้า pool
+unlock_heal,skill_unlock,ฟื้นฟู,add Heal skill card to the pool,1,1,,skill card ฟื้นฟูเข้า pool
+unlock_haste,skill_unlock,เร่งความเร็ว,add Haste skill card to the pool,1,1,,skill card เร่งความเร็วเข้า pool
+unlock_mana_shield,skill_unlock,โล่มานา,add Mana Shield skill card to the pool,1,1,,skill card โล่มานาเข้า pool

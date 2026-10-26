@@ -4,7 +4,7 @@ extends RefCounted
 ## has to make is a Notice; it waits until the player opens it.
 
 var id := 0
-var kind := ""  ## "stat" (spend stat points), "lap_card" (pick a card), "info"
+var kind := ""  ## stat | lap_card | skill_card | item | shop | town_perk | event | info (just a message)
 var title := ""
 var detail := ""
 var created := 0.0  ## run time when it appeared
