@@ -83,7 +83,8 @@ func _draw() -> void:
 	var board := run.board
 	var bg := Art.background()
 	draw_rect(Rect2(Vector2.ZERO, size), Art.color(bg["bg"]))
-	_draw_sea_pattern()
+	if not Art.land_has_water():
+		_draw_sea_pattern()
 	_draw_land(board)
 	_draw_road(board)
 	_refresh_valid()
@@ -114,8 +115,9 @@ func _draw_land(board: Board) -> void:
 				idx |= 4
 			if board.is_land(Vector2i(i, j)):
 				idx |= 8
-			if idx != 0:
-				Art.draw_land(self, Vector2(i * CELL - CELL / 2, j * CELL - CELL / 2), idx)
+			# the real atlas paints the water too (tile 0); the placeholder leaves the background showing
+			if idx != 0 or Art.land_has_water():
+				Art.draw_land(self, Vector2(i * CELL - CELL / 2, j * CELL - CELL / 2), idx, Vector2i(i, j))
 
 
 func _draw_road(board: Board) -> void:
@@ -136,7 +138,7 @@ func _draw_road(board: Board) -> void:
 			elif d == Vector2i(-1, 0):
 				mask |= 8
 		Art.draw_road(self, Vector2(c) * CELL, mask)
-	Art.draw_frame(self, "tiles", "camp", Vector2(board.camp()) * CELL, CELL, CELL)
+	Art.draw_camp(self, Vector2(board.camp()) * CELL)
 
 
 func _draw_valid_cells() -> void:
@@ -196,23 +198,22 @@ func _draw_wild(sp: RunState.Spawn) -> void:
 	if not sp.alive:
 		return
 	var origin := Vector2(run.board.path[sp.index]) * CELL
-	var frame := int(_t * 2.5) % 2
-	Art.draw_unit(self, sp.enemy_id, origin, frame)
+	Art.draw_unit_anim(self, sp.enemy_id, origin, "idle", _t + sp.index * 0.37)
 	if sp.source == "wild":
 		UiTheme.text(self, origin.x + 10, origin.y + 8, str(sp.count), UiTheme.FS_SMALL, UiTheme.TEXT, true)
 
 
 func _draw_hero(px: Vector2) -> void:
 	var h := run.hero_heading()
-	var row := 0
+	var dir := 0
 	if h == Vector2i(-1, 0):
-		row = 1
+		dir = 1
 	elif h == Vector2i(1, 0):
-		row = 2
+		dir = 2
 	elif h == Vector2i(0, -1):
-		row = 3
-	var frame := int(_t * 6.0) % 2 if run.phase == RunState.Phase.WALKING else 0
-	Art.draw_unit(self, "hero", px, frame, row)
+		dir = 3
+	var walking := run.phase == RunState.Phase.WALKING
+	Art.draw_unit_anim(self, "hero", px, "walk", _t if walking else 0.0, dir)
 	var hero := run.hero
 	if hero.hp < hero.max_hp or run.phase == RunState.Phase.FIGHTING:
 		UiTheme.bar(self, Rect2(px + Vector2(2, -3), Vector2(12, 3)), hero.hp / hero.max_hp, UiTheme.HP_COL)

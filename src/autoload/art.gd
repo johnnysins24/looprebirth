@@ -8,6 +8,10 @@ extends Node
 ##
 ## Sizes: tiles 16x16, map objects 16x24 (bottom 16 = the cell, bottom-centre anchor),
 ## units 16x16 (boss 32x32), cards 32x44, icons 16x16.
+##
+## The real sheets are richer than the placeholders (animated water, walk/attack/hurt frames,
+## shadows, elite crowns, finished card faces). Every draw_* call below checks has_real() or
+## the sheet size and falls back to the placeholder layout, so both look right.
 
 const ART_DIR := "res://assets/art/"
 const CELL := 16
@@ -27,13 +31,22 @@ const C := {
 
 ## Background choices to compare during phase 1 (analysis doc: sea / grass / parchment / navy).
 const BACKGROUNDS := [
-	{"name": "ทะเล", "bg": "blue", "land": "lime", "edge": "green"},
-	{"name": "ทุ่งหญ้า", "bg": "green", "land": "lime", "edge": "dark_green"},
-	{"name": "กระดาษเก่า", "bg": "cream", "land": "tan", "edge": "brown"},
-	{"name": "น้ำเงินเข้ม", "bg": "navy", "land": "green", "edge": "dark_green"},
+	{"name": "ทะเล", "bg": "blue", "land": "lime", "edge": "green", "land_id": "land"},
+	{"name": "ทุ่งหญ้า", "bg": "green", "land": "lime", "edge": "dark_green", "land_id": "land_grass"},
+	{"name": "กระดาษเก่า", "bg": "cream", "land": "tan", "edge": "brown", "land_id": "land_parchment"},
+	{"name": "น้ำเงินเข้ม", "bg": "navy", "land": "green", "edge": "dark_green", "land_id": "land_navy"},
 ]
 
+## Animations of the real unit sheets: [row, first column, frames, fps, loops]. Same numbers as
+## assets/art/manifest.json. Hero rows 0-3 walk (down, left, right, up), 4-7 attack (cols 0-2)
+## and hurt (col 3), 8 cast (one column per facing), 9 ko (cols 0-1) and victory (col 2).
+const ENEMY_ANIMS := {"idle": [0, 0, 2, 3.0, true], "attack": [1, 0, 2, 8.0, false], "hurt": [2, 0, 1, 1.0, false]}
+const BOSS_ANIMS := {"idle": [0, 0, 2, 2.0, true], "attack": [1, 0, 3, 6.0, false], "hurt": [2, 0, 1, 1.0, false]}
+const WATER_FPS := 3.0
+const CAMP_FPS := 6.0
+
 var bg_index := 0
+var time := 0.0  ## drives the animated tiles (water, camp fire)
 
 var _cache: Dictionary = {}  # "category/id" -> Texture2D
 var _font: Font
@@ -43,6 +56,10 @@ var _font_bold: Font
 func _ready() -> void:
 	_font = _load_font("Sarabun-Regular.ttf")
 	_font_bold = _load_font("Sarabun-Bold.ttf")
+
+
+func _process(delta: float) -> void:
+	time += delta
 
 
 func font(bold: bool = false) -> Font:
@@ -92,6 +109,11 @@ func sheet(category: String, id: String) -> Texture2D:
 	return tex
 
 
+## True when a real PNG (not a placeholder) exists for this picture.
+func has_real(category: String, id: String) -> bool:
+	return ResourceLoader.exists("%s%s/%s.png" % [ART_DIR, category, id])
+
+
 ## Draws frame (col, row) of a sheet whose frames are fw x fh, with its top-left at `pos`.
 func draw_frame(ci: CanvasItem, category: String, id: String, pos: Vector2, fw: int, fh: int, col: int = 0, row: int = 0, modulate: Color = Color.WHITE) -> void:
 	var tex := sheet(category, id)
@@ -106,11 +128,56 @@ func draw_object(ci: CanvasItem, id: String, cell_px: Vector2, level: int = 1, m
 	draw_frame(ci, "map", id, cell_px + Vector2(0, CELL - OBJ_H), CELL, OBJ_H, level - 1, 0, modulate)
 
 
-## A unit standing on a cell (bottom-centre anchored); row picks the facing for the hero.
-func draw_unit(ci: CanvasItem, id: String, cell_px: Vector2, frame: int = 0, row: int = 0, modulate: Color = Color.WHITE) -> void:
+## Row, first column, frame count, fps and looping of an animation. `dir` is the hero's
+## facing: 0 down, 1 left, 2 right, 3 up. Placeholder sheets only have a walk cycle for the hero
+## and an idle cycle for everyone else, so other animations fall back to those.
+func anim_info(id: String, anim: String, dir: int = 0) -> Array:
+	var real := has_real("units", id)
+	if id == "hero":
+		if not real:
+			return [dir, 0, 2, 6.0, true] if anim == "walk" else [dir, 0, 1, 1.0, false]
+		match anim:
+			"walk":
+				return [dir, 0, 4, 8.0, true]
+			"attack":
+				return [4 + dir, 0, 3, 10.0, false]
+			"hurt":
+				return [4 + dir, 3, 1, 1.0, false]
+			"cast":
+				return [8, dir, 1, 1.0, false]
+			"ko":
+				return [9, 0, 2, 4.0, true]
+			"victory":
+				return [9, 2, 1, 1.0, false]
+		return [dir, 0, 1, 1.0, false]
+	var table: Dictionary = BOSS_ANIMS if id == "boss_warden" else ENEMY_ANIMS
+	if not real:
+		return table["idle"]
+	return table.get(anim, table["idle"])
+
+
+## Seconds a non-looping animation takes (0 for loops), so callers know when it is over.
+func anim_length(id: String, anim: String, dir: int = 0) -> float:
+	var info := anim_info(id, anim, dir)
+	return 0.0 if info[4] else float(info[2]) / float(info[3])
+
+
+## A unit standing on a cell (bottom-centre anchored) `t` seconds into `anim`. Elites use the
+## `<id>_elite` sheet and a crown when those exist.
+func draw_unit_anim(ci: CanvasItem, id: String, cell_px: Vector2, anim: String, t: float, dir: int = 0, modulate: Color = Color.WHITE, elite: bool = false) -> void:
 	var size := unit_size(id)
 	var pos := cell_px + Vector2((CELL - size.x) / 2.0, CELL - size.y)
-	draw_frame(ci, "units", id, pos, int(size.x), int(size.y), frame, row, modulate)
+	if has_real("units", "shadow"):
+		var sh := Vector2(size.x, size.x)  # the 16x16 shadow, doubled under the boss
+		ci.draw_texture_rect(sheet("units", "shadow"), Rect2((cell_px + Vector2((CELL - sh.x) / 2.0, CELL - sh.y)).round(), sh), false, Color(1, 1, 1, modulate.a))
+	var info := anim_info(id, anim, dir)
+	var n: int = info[2]
+	var step := int(maxf(t, 0.0) * float(info[3]))
+	var frame: int = step % n if info[4] else mini(step, n - 1)
+	var sheet_id := id + "_elite" if elite and has_real("units", id + "_elite") else id
+	draw_frame(ci, "units", sheet_id, pos, int(size.x), int(size.y), int(info[1]) + frame, int(info[0]), modulate)
+	if elite and has_real("units", "crown"):
+		ci.draw_texture(sheet("units", "crown"), (Vector2(pos.x + (size.x - 7.0) / 2.0, pos.y - 1.0)).round(), modulate)
 
 
 func unit_size(id: String) -> Vector2i:
@@ -121,15 +188,41 @@ func icon(id: String) -> Texture2D:
 	return sheet("icons", id)
 
 
-## Index (0..15) of the dual-grid land tile: bit 1 = top-left cell is land, 2 = top-right,
-## 4 = bottom-left, 8 = bottom-right.
-func draw_land(ci: CanvasItem, pos: Vector2, index: int) -> void:
-	draw_frame(ci, "tiles", "land", pos, CELL, CELL, index % 4, index / 4)
+## Dual-grid land tile for the grid vertex (i, j). `index` (0..15): bit 1 = top-left cell is land,
+## 2 = top-right, 4 = bottom-left, 8 = bottom-right. The real atlas is 256x96: frame f of the
+## water animation sits in columns 4f..4f+3 (tile index at col index % 4, row index / 4), row 4
+## holds grass variants of tile 15 and row 5 open-water variants of tile 0. The placeholder atlas
+## is a single static 64x64 grid without variants.
+func draw_land(ci: CanvasItem, pos: Vector2, index: int, vertex: Vector2i = Vector2i.ZERO) -> void:
+	var tex := sheet("tiles", background()["land_id"])
+	var col := index % 4
+	var row := index / 4
+	if tex.get_width() >= 256 and tex.get_height() >= 96:
+		var frame := int(time * WATER_FPS) % 4
+		var v := (vertex.x * 73856093 ^ vertex.y * 19349663) & 0x7fffffff
+		if index == 15:
+			row = 4
+			col = v % 4
+		elif index == 0:
+			row = 5
+			col = v % 4
+		col += 4 * frame
+	draw_frame(ci, "tiles", background()["land_id"], pos, CELL, CELL, col, row)
+
+
+## True when the land atlas already paints open water, so the code-drawn sea pattern is not needed.
+func land_has_water() -> bool:
+	return sheet("tiles", background()["land_id"]).get_width() >= 256
 
 
 ## 4-bit road tile: N=1 E=2 S=4 W=8, a bit is set when that neighbour is the next or previous road cell.
 func draw_road(ci: CanvasItem, pos: Vector2, mask: int) -> void:
 	draw_frame(ci, "tiles", "road", pos, CELL, CELL, mask, 0)
+
+
+## The start cell; the real sheet is 4 frames of a flickering fire.
+func draw_camp(ci: CanvasItem, pos: Vector2) -> void:
+	draw_frame(ci, "tiles", "camp", pos, CELL, CELL, int(time * CAMP_FPS) % 4, 0)
 
 
 # --- placeholders ---------------------------------------------------------------------------------
@@ -192,6 +285,8 @@ static func _tri(img: Image, x0: int, y0: int, w: int, h: int, c: Color) -> void
 
 
 func _ph_tiles(id: String) -> Image:
+	if id.begins_with("land"):
+		id = "land"
 	match id:
 		"land":
 			# dual grid atlas, 4x4 tiles; each quadrant is land when its corner cell is land

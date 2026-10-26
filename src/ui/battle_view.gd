@@ -17,6 +17,9 @@ var _banner_t := 0.0
 var _banner_ok := true
 var _hit_flash := {}  # foe index -> time left
 var _hero_flash := 0.0
+var _hero_anim := ""  # "" = standing; attack / cast / hurt play once, ko / victory stay
+var _hero_anim_t0 := 0.0
+var _foe_anims := {}  # foe index -> {"anim", "t0"}
 var _jit := 0
 var _t := 0.0
 
@@ -40,6 +43,8 @@ func _on_started(b: Battle) -> void:
 	_seen = 0
 	_floaters.clear()
 	_hit_flash.clear()
+	_foe_anims.clear()
+	_hero_anim = ""
 	_banner_t = 0.0
 
 
@@ -48,6 +53,7 @@ func _on_ended(b: Battle) -> void:
 	_banner = "ชนะ! +%d XP" % b.stats["xp"] if b.hero_won else "พ่ายแพ้…"
 	_banner_ok = b.hero_won
 	_banner_t = 1.6
+	_play_hero("victory" if b.hero_won else "ko")
 	_battle = b  # keep drawing the final state while the banner shows
 
 
@@ -59,17 +65,54 @@ func _consume(b: Battle) -> void:
 			"hit":
 				_float_on_foe(int(e["foe"]), str(roundi(e["dmg"])), UiTheme.GOLD if (e.get("crit", false) or e.get("via", "") != "") else UiTheme.TEXT)
 				_hit_flash[int(e["foe"])] = 0.12
+				_play_foe(int(e["foe"]), "hurt")
+				if e.get("via", "") == "":  # a skill's damage comes with its own "cast" pose
+					_play_hero("attack")
 			"miss":
 				_float_on_foe(int(e["foe"]), "พลาด", UiTheme.TEXT_DIM)
+				_play_hero("attack")
 			"foe_hit":
 				_float_on_hero(str(roundi(e["dmg"])) + ("!" if e.get("slam", false) else ""), UiTheme.BAD)
 				_hero_flash = 0.12
+				_play_foe(int(e["foe"]), "attack")
+				_play_hero("hurt")
 			"foe_miss":
 				_float_on_hero("หลบ", UiTheme.TEXT_DIM)
+				_play_foe(int(e["foe"]), "attack")
 			"heal":
 				_float_on_hero("+%d" % roundi(e["amount"]), UiTheme.GOOD)
 			"cast":
 				_float_on_hero((b.db.skills[e["skill"]] as GameDb.SkillDef).name_th, Color("2ce8f5"))
+				_play_hero("cast")
+
+
+func _play_hero(anim: String) -> void:
+	_hero_anim = anim
+	_hero_anim_t0 = _t
+
+
+func _play_foe(i: int, anim: String) -> void:
+	_foe_anims[i] = {"anim": anim, "t0": _t}
+
+
+## How long a one-shot pose is held before the unit goes back to standing.
+func _hold(id: String, anim: String) -> float:
+	match anim:
+		"hurt":
+			return 0.2
+		"cast":
+			return 0.35
+	return Art.anim_length(id, anim)
+
+
+## [anim, seconds into it] for the hero right now. Standing is the first walk frame.
+func _hero_pose() -> Array:
+	var age := _t - _hero_anim_t0
+	if _hero_anim == "ko" or _hero_anim == "victory":
+		return [_hero_anim, age]
+	if _hero_anim != "" and age < _hold("hero", _hero_anim):
+		return [_hero_anim, age]
+	return ["walk", 0.0]
 
 
 func _float_on_foe(i: int, s: String, c: Color) -> void:
@@ -130,7 +173,8 @@ func _draw() -> void:
 	var h := run.hero
 	# hero side
 	var hp := _hero_pos()
-	Art.draw_unit(self, "hero", hp, int(_t * 4.0) % 2, 2, Color(1, 0.6, 0.6) if _hero_flash > 0.0 else Color.WHITE)
+	var pose := _hero_pose()
+	Art.draw_unit_anim(self, "hero", hp, pose[0], pose[1], 2, Color(1, 0.6, 0.6) if _hero_flash > 0.0 else Color.WHITE)
 	var bx := r.position.x + 32
 	UiTheme.bar(self, Rect2(bx, r.position.y + 5, 76, 8), h.hp / h.max_hp, UiTheme.HP_COL)
 	UiTheme.text(self, bx + 3, r.position.y + 5, "%d/%d" % [ceili(h.hp), roundi(h.max_hp)], UiTheme.FS_SMALL, UiTheme.TEXT, true)
@@ -150,9 +194,18 @@ func _draw() -> void:
 			tint = Color(1, 1, 1, 0.25)
 		elif _hit_flash.get(i, 0.0) > 0.0:
 			tint = Color(1, 0.6, 0.6)
-		Art.draw_unit(self, f.def.id, p, int(_t * 3.0 + i) % 2, 0, tint)
+		var anim := "idle"
+		var anim_t := _t + i * 0.37
+		var st: Dictionary = _foe_anims.get(i, {})
+		if not f.alive:
+			anim = "hurt"
+			anim_t = 0.0
+		elif not st.is_empty() and _t - st["t0"] < _hold(f.def.id, st["anim"]):
+			anim = st["anim"]
+			anim_t = _t - st["t0"]
+		Art.draw_unit_anim(self, f.def.id, p, anim, anim_t, 0, tint, f.elite)
 		UiTheme.bar(self, Rect2(p + Vector2(1, 17), Vector2(14, 4)), maxf(0.0, f.hp) / f.max_hp, UiTheme.HP_COL)
-		if f.elite:
+		if f.elite and not Art.has_real("units", "crown"):
 			UiTheme.text(self, p.x + 1, p.y - 9, "★", UiTheme.FS_SMALL, UiTheme.GOLD, true)
 	# log
 	var ly := r.position.y + 35.0
