@@ -26,3 +26,8 @@ build จะ fail ถ้ามี pixel ที่ไม่ใช่สีใน 
 | `build.py` | export ทุกอย่าง + manifest + ภาพตัวอย่าง |
 
 กติกาการวาดและวิธีใช้ใน Godot อยู่ที่ [docs/art/README.md](../../docs/art/README.md)
+
+## v2 (style test)
+
+`tools/art/v2/` คือชุดทดลองทิศทางภาพใหม่ (ละเอียด 2 เท่า แนว anime, UI กรมท่า-ทอง) ยังไม่ export เข้า `assets/art/`
+รายละเอียดและภาพตัวอย่างอยู่ที่ [docs/art/v2/README.md](../../docs/art/v2/README.md)
