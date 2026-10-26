@@ -1,0 +1,6 @@
+id,name_th,name_en,mana,trigger,l1,l2,l3,unlock
+fireball,ลูกไฟ,Fireball,30,mana ready,front enemy 10 + 1.2*AP (ignores evasion and DEF),18 + 1.5*AP,30 + 1.9*AP,start
+cleave,ฟันกวาด,Cleave,25,mana ready,all enemies 1.0*ATK - DEF + 0.5*AP,1.3*ATK + 0.7*AP,1.7*ATK + 1.0*AP,start
+heal,ฟื้นฟู,Heal,40,mana ready and HP < 50%,heal 10% max HP + 2*AP,14% + 2.5*AP,20% + 3*AP,rebirth_tree
+haste,เร่งความเร็ว,Haste,35,mana ready,attack speed +50% for 4s,+60% for 5s,+75% for 6s,rebirth_tree
+mana_shield,โล่มานา,Mana Shield,35,mana ready and no shield,absorb 15 + 1.0*AP for 5s,25 + 1.3*AP for 6s,40 + 1.7*AP for 7s,rebirth_tree
