@@ -1,0 +1,29 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  godot:
+    runs-on: ubuntu-latest
+    env:
+      GODOT_VERSION: 4.4.1-stable
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Godot
+        run: |
+          curl -fsSL -o godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          unzip -q godot.zip
+          sudo mv "Godot_v${GODOT_VERSION}_linux.x86_64" /usr/local/bin/godot
+
+      - name: Import project
+        run: godot --headless --path . --import
+
+      - name: Logic tests
+        run: godot --headless --path . --script tests/run_tests.gd
+
+      - name: UI smoke test
+        run: godot --headless --path . --script tests/ui_smoke.gd
