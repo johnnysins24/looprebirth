@@ -174,8 +174,8 @@ CARD_IDS = ["rock", "grove", "meadow", "spring", "slime_nest", "wolf_den", "grav
 def build_cards(man):
     c = man["cards"]
     c["size"] = [ui.CARD_W, ui.CARD_H]
-    c["name_plate"] = {"rect": [4, 34, 24, 6], "text_color": pal.HEX["D"]}
-    c["art_window"] = {"rect": [4, 4, 24, 27]}
+    c["name_plate"] = {"rect": [4, 31, 24, 9], "text_color": pal.HEX["D"]}
+    c["art_window"] = {"rect": [4, 4, 24, 24]}
     c["level_badge"] = {"pos": [2, 0], "size": [7, 9]}
     c["type_icon"] = {"pos": [ui.CARD_W - 11, 3], "size": [8, 8]}
     for ctype in ui.TYPE_COLORS:

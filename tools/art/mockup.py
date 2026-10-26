@@ -196,18 +196,26 @@ class Screen:
     def paste(self, spr, x, y):
         px.paste(self.im, spr, x, y)
 
-    def text(self, x, y, s, size=7, key="w", bold=False, anchor="la"):
-        self.texts.append((x, y, s, size, key, bold, anchor))
+    def text(self, x, y, s, size=7, key="w", bold=False, anchor="la", fit=None):
+        """fit: max width in screen px; the text is shrunk to fit like the game does."""
+        self.texts.append((x, y, s, size, key, bold, anchor, fit))
+
+    def font(self, size, bold):
+        f = self.fonts.get((size, bold))
+        if f is None:
+            path = os.path.join(self.fonts["dir"], "Sarabun-Bold.ttf" if bold else "Sarabun-Regular.ttf")
+            f = ImageFont.truetype(path, round(size * Z), layout_engine=ImageFont.Layout.RAQM)
+            self.fonts[(size, bold)] = f
+        return f
 
     def render(self):
         big = self.im.resize((VIEW[0] * Z, VIEW[1] * Z), Image.NEAREST)
         d = ImageDraw.Draw(big)
-        for (x, y, s, size, key, bold, anchor) in self.texts:
-            f = self.fonts.get((size, bold))
-            if f is None:
-                path = os.path.join(self.fonts["dir"], "Sarabun-Bold.ttf" if bold else "Sarabun-Regular.ttf")
-                f = ImageFont.truetype(path, size * Z, layout_engine=ImageFont.Layout.RAQM)
-                self.fonts[(size, bold)] = f
+        for (x, y, s, size, key, bold, anchor, fit) in self.texts:
+            f = self.font(size, bold)
+            while fit and d.textlength(s, font=f) > fit * Z and size > 3:
+                size -= 0.25
+                f = self.font(size, bold)
             d.text((x * Z, y * Z), s, font=f, fill=pal.KEY[key], anchor=anchor)
         return big
 
@@ -308,7 +316,7 @@ def hand_bar(sc):
         cx = x0 + 3 + n * 34
         cy = y0 + 1 - (3 if n == hover else 0)
         sc.paste(ui.card(cid, lv), cx, cy)
-        sc.text(cx + 16, cy + 37, names[cid], 4, "D", True, anchor="mm")
+        sc.text(cx + 16, cy + 35.5, names[cid], 6, "D", True, anchor="mm", fit=22)
     box = ui.panel_paper(w - 346 - 3, h - 6)
     sc.paste(box, x0 + 346, y0 + 3)
     bx = x0 + 350

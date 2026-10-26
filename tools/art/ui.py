@@ -108,17 +108,17 @@ def card_frame(ctype):
     for (x, y) in ((1, 1), (CARD_W - 2, 1), (1, CARD_H - 2), (CARD_W - 2, CARD_H - 2)):
         c.set(x, y, "k")
     # art window
-    c.rect(3, 3, 26, 29, "k")
+    c.rect(3, 3, 26, 26, "k")
     # name plate
-    c.rect(3, 33, 26, 8, "k")
-    c.rect(4, 34, 24, 6, "c")
-    c.hline(4, 27, 39, "t")
+    # name plate: 24x9 inside, tall enough for a 6 px Thai font with tone marks
+    c.rect(3, 30, 26, 11, "k")
+    c.rect(4, 31, 24, 9, "c")
     return c.image()
 
 
 def art_window(kind, sprite):
-    """26x29 art window (inside the 1px border) for a card."""
-    w, h = 24, 27
+    """24x24 art window (inside the 1px border) for a card."""
+    w, h = 24, 24
     c = px.Canvas(w, h)
     if kind == "road":
         tile = road.road_tile(5)
@@ -131,14 +131,14 @@ def art_window(kind, sprite):
     elif kind == "skill":
         for y in range(h):
             for x in range(w):
-                c.set(x, y, "B" if y < 4 or y > 22 else "u")
+                c.set(x, y, "B" if y < 3 or y > 20 else "u")
     else:
         for y in range(h):
             for x in range(w):
                 c.set(x, y, ground.grass_pixel(x, y, 1 if (y > 14) else 0))
     if sprite is not None:
         sx = (w - sprite.width) // 2
-        sy = h - sprite.height - (1 if kind != "skill" else (h - sprite.height) // 2)
+        sy = max(0, h - sprite.height - (1 if kind != "skill" else (h - sprite.height) // 2))
         c.paste(sprite, sx, sy)
     return c.image()
 
