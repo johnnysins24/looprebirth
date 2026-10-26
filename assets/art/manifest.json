@@ -1,0 +1,1309 @@
+{
+ "version": 1,
+ "generator": "tools/art/build.py",
+ "cell": 16,
+ "rules": {
+  "filter": "nearest, no mipmaps",
+  "anchor": "units and map objects: bottom-centre of the cell; map objects are 16x24 with 8 px overhang",
+  "draw_order": [
+   "land",
+   "road",
+   "camp",
+   "town_ground",
+   "y-sorted: map objects, units, town_fence/town_wall",
+   "cell overlays",
+   "fx",
+   "ui"
+  ]
+ },
+ "tiles": {
+  "land": {
+   "files": {
+    "sea": "tiles/land.png",
+    "grass": "tiles/land_grass.png",
+    "parchment": "tiles/land_parchment.png",
+    "navy": "tiles/land_navy.png"
+   },
+   "tile": [
+    16,
+    16
+   ],
+   "layout": "dual_grid",
+   "offset": [
+    -8,
+    -8
+   ],
+   "grid": "(board_w + 1) x (board_h + 1) tiles; tile (i, j) is drawn at cell (i, j) * 16 - (8, 8)",
+   "index": "TL*1 + TR*2 + BL*4 + BR*8, TL = cell (i-1, j-1), TR = (i, j-1), BL = (i-1, j), BR = (i, j); bit = land; off-board cells are sea",
+   "atlas": "tile index at column index % 4 + 4 * frame, row index // 4",
+   "frames": 4,
+   "fps": 3,
+   "variants": {
+    "15": {
+     "row": 4,
+     "count": 4,
+     "pick": "column 4 * frame + v, v = hash(i, j) % 4 (grass tufts)"
+    },
+    "0": {
+     "row": 5,
+     "count": 4,
+     "pick": "column 4 * frame + v, v = hash(i, j) % 4 (open water)"
+    }
+   }
+  },
+  "road": {
+   "file": "tiles/road.png",
+   "tile": [
+    16,
+    16
+   ],
+   "layout": "mask_strip",
+   "index": "N=1 E=2 S=4 W=8: neighbours that are the previous or next loop cell; frame = mask"
+  },
+  "camp": {
+   "file": "tiles/camp.png",
+   "tile": [
+    16,
+    16
+   ],
+   "frames": 4,
+   "fps": 6,
+   "loop": true,
+   "note": "start cell; the fire flickers"
+  },
+  "town_ground": {
+   "file": "tiles/town_ground.png",
+   "tile": [
+    16,
+    16
+   ],
+   "layout": "dual_grid",
+   "offset": [
+    -8,
+    -8
+   ],
+   "index": "same dual grid and index as land, bit = cell belongs to the town (largest building group)",
+   "tier": 2,
+   "pass": "ground, after the road"
+  },
+  "town_fence": {
+   "file": "tiles/town_fence.png",
+   "tile": [
+    16,
+    16
+   ],
+   "layout": "dual_grid",
+   "offset": [
+    -8,
+    -8
+   ],
+   "index": "same dual grid and index as land, bit = cell belongs to the town (largest building group)",
+   "tier": 1,
+   "pass": "y-sorted with map objects and units, sort y = y of the tile centre + 1"
+  },
+  "town_wall": {
+   "file": "tiles/town_wall.png",
+   "tile": [
+    16,
+    16
+   ],
+   "layout": "dual_grid",
+   "offset": [
+    -8,
+    -8
+   ],
+   "index": "same dual grid and index as land, bit = cell belongs to the town (largest building group)",
+   "tier": 2,
+   "pass": "y-sorted with map objects and units, sort y = y of the tile centre + 1"
+  }
+ },
+ "map": {
+  "rock": {
+   "file": "map/rock.png",
+   "frames": "level 1, 2, 3"
+  },
+  "grove": {
+   "file": "map/grove.png",
+   "frames": "level 1, 2, 3"
+  },
+  "meadow": {
+   "file": "map/meadow.png",
+   "frames": "level 1, 2, 3"
+  },
+  "spring": {
+   "file": "map/spring.png",
+   "frames": "level 1, 2, 3"
+  },
+  "slime_nest": {
+   "file": "map/slime_nest.png",
+   "frames": "level 1, 2, 3"
+  },
+  "wolf_den": {
+   "file": "map/wolf_den.png",
+   "frames": "level 1, 2, 3"
+  },
+  "graveyard": {
+   "file": "map/graveyard.png",
+   "frames": "level 1, 2, 3"
+  },
+  "bandit_camp": {
+   "file": "map/bandit_camp.png",
+   "frames": "level 1, 2, 3"
+  },
+  "house": {
+   "file": "map/house.png",
+   "frames": "level 1, 2, 3"
+  },
+  "smithy": {
+   "file": "map/smithy.png",
+   "frames": "level 1, 2, 3"
+  },
+  "shrine": {
+   "file": "map/shrine.png",
+   "frames": "level 1, 2, 3"
+  },
+  "clear": {
+   "file": "map/clear.png",
+   "frames": "card art only, never placed on the map"
+  },
+  "house_town": {
+   "file": "map/house_town.png",
+   "frames": "level 1, 2, 3",
+   "note": "use for houses inside a tier-2 town"
+  },
+  "event": {
+   "file": "map/event.png",
+   "frames": 4,
+   "fps": 4,
+   "loop": true,
+   "note": "'?' marker of an event cell"
+  }
+ },
+ "units": {
+  "hero": {
+   "file": "units/hero.png",
+   "frame": [
+    16,
+    16
+   ],
+   "anchor": [
+    8,
+    16
+   ],
+   "anims": {
+    "walk_down": {
+     "row": 0,
+     "start": 0,
+     "frames": 4,
+     "fps": 8,
+     "loop": true
+    },
+    "walk_left": {
+     "row": 1,
+     "start": 0,
+     "frames": 4,
+     "fps": 8,
+     "loop": true
+    },
+    "walk_right": {
+     "row": 2,
+     "start": 0,
+     "frames": 4,
+     "fps": 8,
+     "loop": true
+    },
+    "walk_up": {
+     "row": 3,
+     "start": 0,
+     "frames": 4,
+     "fps": 8,
+     "loop": true
+    },
+    "attack_down": {
+     "row": 4,
+     "start": 0,
+     "frames": 3,
+     "fps": 10,
+     "loop": false
+    },
+    "hurt_down": {
+     "row": 4,
+     "start": 3,
+     "frames": 1,
+     "fps": 1,
+     "loop": false
+    },
+    "attack_left": {
+     "row": 5,
+     "start": 0,
+     "frames": 3,
+     "fps": 10,
+     "loop": false
+    },
+    "hurt_left": {
+     "row": 5,
+     "start": 3,
+     "frames": 1,
+     "fps": 1,
+     "loop": false
+    },
+    "attack_right": {
+     "row": 6,
+     "start": 0,
+     "frames": 3,
+     "fps": 10,
+     "loop": false
+    },
+    "hurt_right": {
+     "row": 6,
+     "start": 3,
+     "frames": 1,
+     "fps": 1,
+     "loop": false
+    },
+    "attack_up": {
+     "row": 7,
+     "start": 0,
+     "frames": 3,
+     "fps": 10,
+     "loop": false
+    },
+    "hurt_up": {
+     "row": 7,
+     "start": 3,
+     "frames": 1,
+     "fps": 1,
+     "loop": false
+    },
+    "cast_down": {
+     "row": 8,
+     "start": 0,
+     "frames": 1,
+     "fps": 1,
+     "loop": false
+    },
+    "cast_left": {
+     "row": 8,
+     "start": 1,
+     "frames": 1,
+     "fps": 1,
+     "loop": false
+    },
+    "cast_right": {
+     "row": 8,
+     "start": 2,
+     "frames": 1,
+     "fps": 1,
+     "loop": false
+    },
+    "cast_up": {
+     "row": 8,
+     "start": 3,
+     "frames": 1,
+     "fps": 1,
+     "loop": false
+    },
+    "ko": {
+     "row": 9,
+     "start": 0,
+     "frames": 2,
+     "fps": 4,
+     "loop": true
+    },
+    "victory": {
+     "row": 9,
+     "start": 2,
+     "frames": 1,
+     "fps": 1,
+     "loop": false
+    }
+   }
+  },
+  "slime": {
+   "file": "units/slime.png",
+   "frame": [
+    16,
+    16
+   ],
+   "anchor": [
+    8,
+    16
+   ],
+   "anims": {
+    "idle": {
+     "row": 0,
+     "start": 0,
+     "frames": 2,
+     "fps": 3,
+     "loop": true
+    },
+    "attack": {
+     "row": 1,
+     "start": 0,
+     "frames": 2,
+     "fps": 8,
+     "loop": false
+    },
+    "hurt": {
+     "row": 2,
+     "start": 0,
+     "frames": 1,
+     "fps": 1,
+     "loop": false
+    }
+   }
+  },
+  "slime_elite": {
+   "file": "units/slime_elite.png",
+   "frame": [
+    16,
+    16
+   ],
+   "anchor": [
+    8,
+    16
+   ],
+   "anims": {
+    "idle": {
+     "row": 0,
+     "start": 0,
+     "frames": 2,
+     "fps": 3,
+     "loop": true
+    },
+    "attack": {
+     "row": 1,
+     "start": 0,
+     "frames": 2,
+     "fps": 8,
+     "loop": false
+    },
+    "hurt": {
+     "row": 2,
+     "start": 0,
+     "frames": 1,
+     "fps": 1,
+     "loop": false
+    }
+   }
+  },
+  "wolf": {
+   "file": "units/wolf.png",
+   "frame": [
+    16,
+    16
+   ],
+   "anchor": [
+    8,
+    16
+   ],
+   "anims": {
+    "idle": {
+     "row": 0,
+     "start": 0,
+     "frames": 2,
+     "fps": 3,
+     "loop": true
+    },
+    "attack": {
+     "row": 1,
+     "start": 0,
+     "frames": 2,
+     "fps": 8,
+     "loop": false
+    },
+    "hurt": {
+     "row": 2,
+     "start": 0,
+     "frames": 1,
+     "fps": 1,
+     "loop": false
+    }
+   }
+  },
+  "wolf_elite": {
+   "file": "units/wolf_elite.png",
+   "frame": [
+    16,
+    16
+   ],
+   "anchor": [
+    8,
+    16
+   ],
+   "anims": {
+    "idle": {
+     "row": 0,
+     "start": 0,
+     "frames": 2,
+     "fps": 3,
+     "loop": true
+    },
+    "attack": {
+     "row": 1,
+     "start": 0,
+     "frames": 2,
+     "fps": 8,
+     "loop": false
+    },
+    "hurt": {
+     "row": 2,
+     "start": 0,
+     "frames": 1,
+     "fps": 1,
+     "loop": false
+    }
+   }
+  },
+  "skeleton": {
+   "file": "units/skeleton.png",
+   "frame": [
+    16,
+    16
+   ],
+   "anchor": [
+    8,
+    16
+   ],
+   "anims": {
+    "idle": {
+     "row": 0,
+     "start": 0,
+     "frames": 2,
+     "fps": 3,
+     "loop": true
+    },
+    "attack": {
+     "row": 1,
+     "start": 0,
+     "frames": 2,
+     "fps": 8,
+     "loop": false
+    },
+    "hurt": {
+     "row": 2,
+     "start": 0,
+     "frames": 1,
+     "fps": 1,
+     "loop": false
+    }
+   }
+  },
+  "skeleton_elite": {
+   "file": "units/skeleton_elite.png",
+   "frame": [
+    16,
+    16
+   ],
+   "anchor": [
+    8,
+    16
+   ],
+   "anims": {
+    "idle": {
+     "row": 0,
+     "start": 0,
+     "frames": 2,
+     "fps": 3,
+     "loop": true
+    },
+    "attack": {
+     "row": 1,
+     "start": 0,
+     "frames": 2,
+     "fps": 8,
+     "loop": false
+    },
+    "hurt": {
+     "row": 2,
+     "start": 0,
+     "frames": 1,
+     "fps": 1,
+     "loop": false
+    }
+   }
+  },
+  "bandit": {
+   "file": "units/bandit.png",
+   "frame": [
+    16,
+    16
+   ],
+   "anchor": [
+    8,
+    16
+   ],
+   "anims": {
+    "idle": {
+     "row": 0,
+     "start": 0,
+     "frames": 2,
+     "fps": 3,
+     "loop": true
+    },
+    "attack": {
+     "row": 1,
+     "start": 0,
+     "frames": 2,
+     "fps": 8,
+     "loop": false
+    },
+    "hurt": {
+     "row": 2,
+     "start": 0,
+     "frames": 1,
+     "fps": 1,
+     "loop": false
+    }
+   }
+  },
+  "bandit_elite": {
+   "file": "units/bandit_elite.png",
+   "frame": [
+    16,
+    16
+   ],
+   "anchor": [
+    8,
+    16
+   ],
+   "anims": {
+    "idle": {
+     "row": 0,
+     "start": 0,
+     "frames": 2,
+     "fps": 3,
+     "loop": true
+    },
+    "attack": {
+     "row": 1,
+     "start": 0,
+     "frames": 2,
+     "fps": 8,
+     "loop": false
+    },
+    "hurt": {
+     "row": 2,
+     "start": 0,
+     "frames": 1,
+     "fps": 1,
+     "loop": false
+    }
+   }
+  },
+  "boss_warden": {
+   "file": "units/boss_warden.png",
+   "frame": [
+    32,
+    32
+   ],
+   "anchor": [
+    16,
+    32
+   ],
+   "anims": {
+    "idle": {
+     "row": 0,
+     "start": 0,
+     "frames": 2,
+     "fps": 2,
+     "loop": true
+    },
+    "attack": {
+     "row": 1,
+     "start": 0,
+     "frames": 3,
+     "fps": 6,
+     "loop": false
+    },
+    "hurt": {
+     "row": 2,
+     "start": 0,
+     "frames": 1,
+     "fps": 1,
+     "loop": false
+    }
+   }
+  },
+  "shadow": {
+   "file": "units/shadow.png",
+   "frame": [
+    16,
+    16
+   ],
+   "anchor": [
+    8,
+    16
+   ],
+   "note": "drawn under every unit before the unit"
+  },
+  "crown": {
+   "file": "units/crown.png",
+   "frame": [
+    7,
+    4
+   ],
+   "note": "elite marker, drawn above the head"
+  }
+ },
+ "icons": {
+  "item_amulet": "icons/item_amulet.png",
+  "item_armor": "icons/item_armor.png",
+  "item_charm": "icons/item_charm.png",
+  "item_ring": "icons/item_ring.png",
+  "item_weapon": "icons/item_weapon.png",
+  "node_bigger_hand": "icons/node_bigger_hand.png",
+  "node_map_sketch": "icons/node_map_sketch.png",
+  "node_more_goals": "icons/node_more_goals.png",
+  "node_quick_start": "icons/node_quick_start.png",
+  "node_reroll": "icons/node_reroll.png",
+  "node_sharp_eye": "icons/node_sharp_eye.png",
+  "node_third_skill_slot": "icons/node_third_skill_slot.png",
+  "notif_event": "icons/notif_event.png",
+  "notif_goal": "icons/notif_goal.png",
+  "notif_item": "icons/notif_item.png",
+  "notif_lap_card": "icons/notif_lap_card.png",
+  "notif_skill_card": "icons/notif_skill_card.png",
+  "notif_stat_point": "icons/notif_stat_point.png",
+  "notif_town_perk": "icons/notif_town_perk.png",
+  "perk_bell_tower": "icons/perk_bell_tower.png",
+  "perk_carpenter": "icons/perk_carpenter.png",
+  "perk_field_hospital": "icons/perk_field_hospital.png",
+  "perk_guard_post": "icons/perk_guard_post.png",
+  "perk_library": "icons/perk_library.png",
+  "perk_market": "icons/perk_market.png",
+  "perk_school": "icons/perk_school.png",
+  "perk_shop": "icons/perk_shop.png",
+  "perk_training_yard": "icons/perk_training_yard.png",
+  "skill_cleave": "icons/skill_cleave.png",
+  "skill_fireball": "icons/skill_fireball.png",
+  "skill_haste": "icons/skill_haste.png",
+  "skill_heal": "icons/skill_heal.png",
+  "skill_mana_shield": "icons/skill_mana_shield.png",
+  "stat_agi": "icons/stat_agi.png",
+  "stat_int": "icons/stat_int.png",
+  "stat_str": "icons/stat_str.png",
+  "small/agi": "icons/small/agi.png",
+  "small/ap": "icons/small/ap.png",
+  "small/atk": "icons/small/atk.png",
+  "small/atk_speed": "icons/small/atk_speed.png",
+  "small/check": "icons/small/check.png",
+  "small/crit": "icons/small/crit.png",
+  "small/crit_damage": "icons/small/crit_damage.png",
+  "small/def": "icons/small/def.png",
+  "small/evasion": "icons/small/evasion.png",
+  "small/hp": "icons/small/hp.png",
+  "small/int": "icons/small/int.png",
+  "small/lap": "icons/small/lap.png",
+  "small/lock": "icons/small/lock.png",
+  "small/luck": "icons/small/luck.png",
+  "small/mana": "icons/small/mana.png",
+  "small/pause": "icons/small/pause.png",
+  "small/play": "icons/small/play.png",
+  "small/rp": "icons/small/rp.png",
+  "small/str": "icons/small/str.png",
+  "small/type_building": "icons/small/type_building.png",
+  "small/type_encounter": "icons/small/type_encounter.png",
+  "small/type_skill": "icons/small/type_skill.png",
+  "small/type_special": "icons/small/type_special.png",
+  "small/type_terrain": "icons/small/type_terrain.png",
+  "small/xp": "icons/small/xp.png"
+ },
+ "cards": {
+  "size": [
+   32,
+   44
+  ],
+  "name_plate": {
+   "rect": [
+    4,
+    31,
+    24,
+    9
+   ],
+   "text_color": "3e2731"
+  },
+  "art_window": {
+   "rect": [
+    4,
+    4,
+    24,
+    24
+   ]
+  },
+  "level_badge": {
+   "pos": [
+    2,
+    0
+   ],
+   "size": [
+    7,
+    9
+   ]
+  },
+  "type_icon": {
+   "pos": [
+    21,
+    3
+   ],
+   "size": [
+    8,
+    8
+   ]
+  },
+  "frame_terrain": "cards/frame_terrain.png",
+  "frame_encounter": "cards/frame_encounter.png",
+  "frame_building": "cards/frame_building.png",
+  "frame_special": "cards/frame_special.png",
+  "frame_skill": "cards/frame_skill.png",
+  "back": "cards/back.png",
+  "badge": "cards/badge.png",
+  "rock": {
+   "file": "cards/rock.png",
+   "type": "terrain",
+   "frames": "level 1, 2, 3"
+  },
+  "grove": {
+   "file": "cards/grove.png",
+   "type": "terrain",
+   "frames": "level 1, 2, 3"
+  },
+  "meadow": {
+   "file": "cards/meadow.png",
+   "type": "terrain",
+   "frames": "level 1, 2, 3"
+  },
+  "spring": {
+   "file": "cards/spring.png",
+   "type": "terrain",
+   "frames": "level 1, 2, 3"
+  },
+  "slime_nest": {
+   "file": "cards/slime_nest.png",
+   "type": "encounter",
+   "frames": "level 1, 2, 3"
+  },
+  "wolf_den": {
+   "file": "cards/wolf_den.png",
+   "type": "encounter",
+   "frames": "level 1, 2, 3"
+  },
+  "graveyard": {
+   "file": "cards/graveyard.png",
+   "type": "encounter",
+   "frames": "level 1, 2, 3"
+  },
+  "bandit_camp": {
+   "file": "cards/bandit_camp.png",
+   "type": "encounter",
+   "frames": "level 1, 2, 3"
+  },
+  "house": {
+   "file": "cards/house.png",
+   "type": "building",
+   "frames": "level 1, 2, 3"
+  },
+  "smithy": {
+   "file": "cards/smithy.png",
+   "type": "building",
+   "frames": "level 1, 2, 3"
+  },
+  "shrine": {
+   "file": "cards/shrine.png",
+   "type": "special",
+   "frames": "level 1, 2, 3"
+  },
+  "clear": {
+   "file": "cards/clear.png",
+   "type": "special",
+   "frames": "level 1, 2, 3"
+  },
+  "skill_fireball": {
+   "file": "cards/skill_fireball.png",
+   "type": "skill",
+   "frames": "level 1, 2, 3"
+  },
+  "skill_cleave": {
+   "file": "cards/skill_cleave.png",
+   "type": "skill",
+   "frames": "level 1, 2, 3"
+  },
+  "skill_heal": {
+   "file": "cards/skill_heal.png",
+   "type": "skill",
+   "frames": "level 1, 2, 3"
+  },
+  "skill_haste": {
+   "file": "cards/skill_haste.png",
+   "type": "skill",
+   "frames": "level 1, 2, 3"
+  },
+  "skill_mana_shield": {
+   "file": "cards/skill_mana_shield.png",
+   "type": "skill",
+   "frames": "level 1, 2, 3"
+  }
+ },
+ "ui": {
+  "panel_wood": {
+   "file": "ui/panel_wood.png",
+   "nine_slice": [
+    3,
+    3,
+    3,
+    3
+   ],
+   "center": "tile"
+  },
+  "panel_paper": {
+   "file": "ui/panel_paper.png",
+   "nine_slice": [
+    3,
+    3,
+    3,
+    3
+   ],
+   "center": "stretch"
+  },
+  "panel_dark": {
+   "file": "ui/panel_dark.png",
+   "nine_slice": [
+    2,
+    2,
+    2,
+    2
+   ],
+   "center": "stretch",
+   "note": "tooltips and modal backing"
+  },
+  "notif_row": {
+   "file": "ui/notif_row.png",
+   "nine_slice": [
+    3,
+    3,
+    3,
+    3
+   ],
+   "center": "stretch"
+  },
+  "button": {
+   "file": "ui/button.png",
+   "frame": [
+    16,
+    16
+   ],
+   "frames": [
+    "normal",
+    "hover",
+    "pressed",
+    "disabled"
+   ],
+   "nine_slice": [
+    3,
+    3,
+    3,
+    3
+   ]
+  },
+  "slot": {
+   "file": "ui/slot.png",
+   "frame": [
+    20,
+    20
+   ],
+   "frames": [
+    "normal",
+    "hover",
+    "common",
+    "rare",
+    "epic",
+    "skill"
+   ]
+  },
+  "bar_frame": {
+   "file": "ui/bar_frame.png",
+   "nine_slice": [
+    3,
+    2,
+    3,
+    2
+   ],
+   "fill_rect": [
+    2,
+    2,
+    44,
+    4
+   ]
+  },
+  "bar_fill": {
+   "file": "ui/bar_fill.png",
+   "frame": [
+    8,
+    4
+   ],
+   "rows": [
+    "hp",
+    "mana",
+    "xp",
+    "enemy",
+    "shield"
+   ],
+   "note": "stretch or tile horizontally"
+  },
+  "cursor": {
+   "file": "ui/cursor.png",
+   "hotspot": [
+    0,
+    0
+   ]
+  },
+  "cursor_grab": {
+   "file": "ui/cursor_grab.png",
+   "hotspot": [
+    5,
+    4
+   ]
+  },
+  "portrait_hero": "ui/portrait_hero.png",
+  "cell_overlay": {
+   "file": "ui/cell_overlay.png",
+   "frame": [
+    16,
+    16
+   ],
+   "frames": [
+    "valid",
+    "invalid",
+    "merge",
+    "combo",
+    "warn"
+   ]
+  },
+  "level_pips": {
+   "file": "ui/level_pips.png",
+   "frame": [
+    16,
+    16
+   ],
+   "frames": "level 1, 2, 3"
+  },
+  "digits": {
+   "file": "ui/digits.png",
+   "frame": [
+    3,
+    5
+   ],
+   "glyphs": "0123456789x+-/%",
+   "advance": 4,
+   "note": "white, recolor with modulate"
+  },
+  "digits_outline": {
+   "file": "ui/digits_outline.png",
+   "frame": [
+    5,
+    7
+   ],
+   "glyphs": "0123456789x+-/%",
+   "advance": 4,
+   "note": "for numbers over the map"
+  }
+ },
+ "fx": {
+  "slash": {
+   "file": "fx/slash.png",
+   "frame": [
+    16,
+    16
+   ],
+   "frames": 3,
+   "fps": 15,
+   "loop": false,
+   "anchor": [
+    8,
+    8
+   ]
+  },
+  "hit": {
+   "file": "fx/hit.png",
+   "frame": [
+    16,
+    16
+   ],
+   "frames": 3,
+   "fps": 15,
+   "loop": false,
+   "anchor": [
+    8,
+    8
+   ]
+  },
+  "heal": {
+   "file": "fx/heal.png",
+   "frame": [
+    16,
+    16
+   ],
+   "frames": 4,
+   "fps": 8,
+   "loop": false,
+   "anchor": [
+    8,
+    8
+   ]
+  },
+  "levelup": {
+   "file": "fx/levelup.png",
+   "frame": [
+    16,
+    24
+   ],
+   "frames": 4,
+   "fps": 8,
+   "loop": false,
+   "anchor": [
+    8,
+    24
+   ]
+  },
+  "poof": {
+   "file": "fx/poof.png",
+   "frame": [
+    16,
+    16
+   ],
+   "frames": 4,
+   "fps": 10,
+   "loop": false,
+   "anchor": [
+    8,
+    8
+   ]
+  },
+  "merge": {
+   "file": "fx/merge.png",
+   "frame": [
+    16,
+    16
+   ],
+   "frames": 4,
+   "fps": 12,
+   "loop": false,
+   "anchor": [
+    8,
+    8
+   ]
+  },
+  "fireball": {
+   "file": "fx/fireball.png",
+   "frame": [
+    8,
+    8
+   ],
+   "frames": 2,
+   "fps": 10,
+   "loop": true,
+   "anchor": [
+    4,
+    4
+   ]
+  },
+  "shield": {
+   "file": "fx/shield.png",
+   "frame": [
+    16,
+    16
+   ],
+   "frames": 2,
+   "fps": 4,
+   "loop": true,
+   "anchor": [
+    8,
+    8
+   ]
+  },
+  "haste": {
+   "file": "fx/haste.png",
+   "frame": [
+    16,
+    16
+   ],
+   "frames": 2,
+   "fps": 10,
+   "loop": true,
+   "anchor": [
+    8,
+    8
+   ]
+  }
+ },
+ "palette": {
+  "name": "Endesga 32",
+  "files": [
+   "palette/endesga32.png",
+   "palette/endesga32.hex",
+   "palette/endesga32.gpl"
+  ],
+  "colors": [
+   {
+    "key": "r",
+    "hex": "#be4a2f",
+    "name": "rust"
+   },
+   {
+    "key": "o",
+    "hex": "#d77643",
+    "name": "orange clay"
+   },
+   {
+    "key": "c",
+    "hex": "#ead4aa",
+    "name": "cream"
+   },
+   {
+    "key": "t",
+    "hex": "#e4a672",
+    "name": "tan / sand"
+   },
+   {
+    "key": "b",
+    "hex": "#b86f50",
+    "name": "brown"
+   },
+   {
+    "key": "d",
+    "hex": "#733e39",
+    "name": "dark brown"
+   },
+   {
+    "key": "D",
+    "hex": "#3e2731",
+    "name": "deep brown"
+   },
+   {
+    "key": "R",
+    "hex": "#a22633",
+    "name": "dark red"
+   },
+   {
+    "key": "e",
+    "hex": "#e43b44",
+    "name": "red"
+   },
+   {
+    "key": "O",
+    "hex": "#f77622",
+    "name": "orange"
+   },
+   {
+    "key": "y",
+    "hex": "#feae34",
+    "name": "amber"
+   },
+   {
+    "key": "Y",
+    "hex": "#fee761",
+    "name": "yellow"
+   },
+   {
+    "key": "g",
+    "hex": "#63c74d",
+    "name": "light green"
+   },
+   {
+    "key": "G",
+    "hex": "#3e8948",
+    "name": "green"
+   },
+   {
+    "key": "h",
+    "hex": "#265c42",
+    "name": "dark green"
+   },
+   {
+    "key": "H",
+    "hex": "#193c3e",
+    "name": "deep green"
+   },
+   {
+    "key": "B",
+    "hex": "#124e89",
+    "name": "dark blue"
+   },
+   {
+    "key": "u",
+    "hex": "#0099db",
+    "name": "blue"
+   },
+   {
+    "key": "a",
+    "hex": "#2ce8f5",
+    "name": "cyan"
+   },
+   {
+    "key": "w",
+    "hex": "#ffffff",
+    "name": "white"
+   },
+   {
+    "key": "l",
+    "hex": "#c0cbdc",
+    "name": "light grey"
+   },
+   {
+    "key": "s",
+    "hex": "#8b9bb4",
+    "name": "grey"
+   },
+   {
+    "key": "S",
+    "hex": "#5a6988",
+    "name": "slate"
+   },
+   {
+    "key": "n",
+    "hex": "#3a4466",
+    "name": "dark slate"
+   },
+   {
+    "key": "N",
+    "hex": "#262b44",
+    "name": "navy"
+   },
+   {
+    "key": "k",
+    "hex": "#181425",
+    "name": "ink (outline)"
+   },
+   {
+    "key": "x",
+    "hex": "#ff0044",
+    "name": "hot red"
+   },
+   {
+    "key": "p",
+    "hex": "#68386c",
+    "name": "purple"
+   },
+   {
+    "key": "m",
+    "hex": "#b55088",
+    "name": "magenta"
+   },
+   {
+    "key": "P",
+    "hex": "#f6757a",
+    "name": "pink"
+   },
+   {
+    "key": "f",
+    "hex": "#e8b796",
+    "name": "skin light"
+   },
+   {
+    "key": "F",
+    "hex": "#c28569",
+    "name": "skin"
+   }
+  ]
+ }
+}
